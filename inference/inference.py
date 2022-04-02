@@ -55,7 +55,7 @@ def run_inference(
     niftis,
     output_folder,
     comment="none",
-    model_weights="deliver_cfos/model_weights/weights.tar",
+    model_weights="inference/model_weights/weights.tar",
     tta=True,
     threshold=0.5,
     cuda_devices="0,1",
