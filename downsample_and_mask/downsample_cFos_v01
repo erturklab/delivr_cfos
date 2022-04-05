@@ -1,0 +1,168 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Apr  4 23:20:47 2022
+
+@author: wirrbel
+"""
+
+import os
+import glob
+from skimage import io, transform
+import numpy as np
+import multiprocessing as mp 
+import tempfile
+
+#stitched images are here 
+raw_location = '/media/wirrbel/Moritz_Negwer/c26_3407_cfos647_4x_3x3_20o_6um_stitching/'
+
+#generate a sorted list of all images 
+raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
+
+#TODO user input: original images µm / px (coming from the microscope)
+original_um_x = 1.62
+original_um_y = 1.62
+original_um_z = 6.0
+
+#TODO user input: atlas resolution in µm/px 
+downsampled_um_x = 25.0
+downsampled_um_y = 25.0
+downsampled_um_z = 25.0
+
+#TODO user input: Ilastik path 
+ilastik_path = '/home/wirrbel/ilastik-1.4.0b8-Linux/'
+
+#TODO user input: Ilastik project file
+ventricle_masking_ilastik_project = '/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/2022-04-04_Ilastik_ventricles_pipeline/find_ventricles_downsampled.ilp'
+
+def downsample_zplanes(raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_dir,z_planes):
+    #define empty chunk list 
+    z_chunk = []
+    #generate list of all planes in the chunk 
+    for plane in range(z_planes[0],z_planes[1]):
+        z_chunk.append(os.path.join(raw_location,raw_image_list[plane]))
+            
+    #generate collection, then read into memory
+    z_chunk_imgs = io.imread_collection(z_chunk)
+    z_chunk_imgs = io.concatenate_images(z_chunk_imgs)
+
+    #downsample to the right dimensions 
+    z_chunk_downsampled = transform.downscale_local_mean(z_chunk_imgs,(z_ratio,y_ratio,x_ratio)).astype('uint16')
+    
+    #save to temporary directory 
+    io.imsave(os.path.join(temp_dir.name,'downsampled_um_z' + str(z_planes[0]).zfill(4) + '-' + str(z_planes[1]).zfill(4) + '.tif'),z_chunk_downsampled,compress=True)    
+
+def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project):
+    #runs Ilastik as command line tool 
+    
+    #assemble command 
+    cmd = str(os.path.join(ilastik_path,'run_ilastik.sh')
+              + ' --headless '
+              + ' --project=' + ventricle_masking_ilastik_project + ' '
+              + os.path.join(results_folder,downsampled_name + '.tif')
+              )
+    
+    #run command
+    res = os.system(cmd)
+    
+    #reassemble images
+    mask_dir = os.path.join(results_folder,'ventricles_zplanes')
+    mask_list = sorted([os.path.join(mask_dir,file) for file in os.listdir(mask_dir)])
+    mask = io.imread_collection(mask_list)
+    mask = io.concatenate_images(mask)
+    
+    #cast to 8-bit (should be superfluous)
+    mask = mask.astype('uint8')
+    
+    #Ilastik exports probabilities mapped between 0 and 255.
+    #thresholding at 128: everything smaller = 0, everything larger = 1
+    mask[mask < 128] = 0
+    mask[mask >= 128] = 1
+    
+    #save in main folder 
+    io.imsave(os.path.join(results_folder,downsampled_name + '_mask.tif'),mask,compress=True)
+    
+    return mask 
+
+def collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,mask):
+    yx = io.imread(os.path.join(raw_location,raw_image_list[0]))
+
+    #create dictionary for original dimensions 
+    original_dims = {'original_um_x' : original_um_x,
+                    'original_um_y' : original_um_y,
+                    'original_um_z' : original_um_z,
+                    'original_px_x' : yx[1],
+                    'original_px_x' : yx[0],
+                    'original_px_x' : len(raw_image_list)
+                    }
+    
+    #create dict for downsampled dimensions 
+    downsampled_dims = {'downsampled_um_x' : downsampled_um_x,
+                        'downsampled_um_y' : downsampled_um_y,
+                        'downsampled_um_z' : downsampled_um_z,
+                        'downsampled_px_x' : mask.shape[2],
+                        'downsampled_px_y' : mask.shape[1],
+                        'downsampled_px_z' : mask.shape[0]
+                        }
+    
+    return original_dims, downsampled_dims
+    
+    
+    
+    
+if __name__ == '__main__':
+    #calculate the ratios 
+    x_ratio = round(downsampled_um_x/original_um_x)
+    y_ratio = round(downsampled_um_y/original_um_y)
+    z_ratio = round(downsampled_um_z/original_um_z)
+    
+    #split the image list into this many chunks along z
+    z_series = np.arange(0,len(raw_image_list),z_ratio)
+    
+    #create a new results folder
+    parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
+    results_folder = os.path.join(parent_dir,raw_folder+'_results')
+    #try to create, assume it already exists if create fails 
+    try:
+        os.mkdir(results_folder)
+    except:
+        pass
+        
+    #create a temporary storage directory for downsampling 
+    temp_dir = tempfile.TemporaryDirectory() 
+
+    #open multiprocessing pool 
+    pool = mp.Pool(processes = 6)
+
+    #run resampling in parallel 
+    for z_planes in zip(z_series,z_series[1:]):
+        print(z_planes)
+        pool.apply_async(downsample_zplanes, (raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_dir,z_planes))
+    
+    #close pool 
+    pool.close()
+    pool.join()
+    
+    #list images 
+    downsampled_list = sorted([os.path.join(temp_dir.name, file) for file in os.listdir(temp_dir.name)])
+    
+    #debug
+    print(downsampled_list)
+    
+    #reassemble images to one big stack 
+    downsampled_stack = io.imread_collection(downsampled_list)
+    downsampled_stack = io.concatenate_images(downsampled_stack)
+    
+    #save as new stack in results_folder
+    downsampled_name = 'stack_resampled'
+    io.imsave(os.path.join(results_folder,downsampled_name + '.tif'),downsampled_stack,compress=True)
+    
+    #cleanup 
+    temp_dir.cleanup()
+    
+    #run Ilastik 
+    downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
+    
+    #define dimension dictionaries 
+    original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
+    
