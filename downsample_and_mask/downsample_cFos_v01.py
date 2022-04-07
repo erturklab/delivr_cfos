@@ -113,11 +113,6 @@ def upsample(image : np.array,
     mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
     return mask_us
 
-
-    
-# TODO Save based on flags
-# TODO Readme
-# TODO main module
     
 # if __name__ == '__main__':
 def downsample_mask(settings):
@@ -148,13 +143,14 @@ def downsample_mask(settings):
     z_series = np.arange(0,len(raw_image_list),z_ratio)
     
     #create a new results folder
-    parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
-    results_folder = os.path.join(parent_dir,raw_folder+'_results')
-    #try to create, assume it already exists if create fails 
-    try:
+    results_folder = settings["mask_detection"]["mask_output_location"]
+    if results_folder == "":
+        parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
+        results_folder = os.path.join(parent_dir,raw_folder+'_results')
+
+    #try to create
+    if not os.path.exists(results_folder):
         os.mkdir(results_folder)
-    except:
-        pass
         
     #create a temporary storage directory for downsampling 
     temp_dir = tempfile.TemporaryDirectory() 
