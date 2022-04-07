@@ -9,31 +9,11 @@ Created on Mon Apr  4 23:20:47 2022
 import os
 import glob
 from skimage import io, transform
+from scipy.ndimage import zoom
 import numpy as np
 import multiprocessing as mp 
 import tempfile
 
-#stitched images are here 
-raw_location = '/media/wirrbel/Moritz_Negwer/c26_3407_cfos647_4x_3x3_20o_6um_stitching/'
-
-#generate a sorted list of all images 
-raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
-
-#TODO user input: original images µm / px (coming from the microscope)
-original_um_x = 1.62
-original_um_y = 1.62
-original_um_z = 6.0
-
-#TODO user input: atlas resolution in µm/px 
-downsampled_um_x = 25.0
-downsampled_um_y = 25.0
-downsampled_um_z = 25.0
-
-#TODO user input: Ilastik path 
-ilastik_path = '/home/wirrbel/ilastik-1.4.0b8-Linux/'
-
-#TODO user input: Ilastik project file
-ventricle_masking_ilastik_project = '/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/2022-04-04_Ilastik_ventricles_pipeline/find_ventricles_downsampled.ilp'
 
 def downsample_zplanes(raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_dir,z_planes):
     #define empty chunk list 
@@ -107,10 +87,58 @@ def collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_u
     
     return original_dims, downsampled_dims
     
+def upsample(image : np.array,
+        original_um_x : float,
+        original_um_y : float,
+        original_um_z : float,
+        downsample_um_x : float,
+        downsample_um_y : float,
+        downsample_um_z : float) -> np.array:
+    """
+    Upsamples image based on original values
+    Args:
+        image (np.array) : Downsampled image
+        original_um_x (float) : Original x step
+        original_um_y (float) : Original y step
+        original_um_z (float) : Original z step
+        downsample_um_x (float) : Downsampled x step 
+        downsample_um_y (float) : Downsampled y step
+        downsample_um_z (float) : Downsampled z step
+    Returns:
+        mask_us (np.array) : Upscaled image
+    """
+    x_ratio = downsampled_um_x/original_um_x
+    y_ratio = downsampled_um_y/original_um_y
+    z_ratio = downsampled_um_z/original_um_z
+    mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
+    return mask_us
+
+
     
+# TODO Save based on flags
+# TODO Readme
+# TODO main module
     
-    
-if __name__ == '__main__':
+# if __name__ == '__main__':
+def downsample_mask(settings):
+
+    #stitched images are here 
+    raw_location = settings["raw_location"]
+    #generate a sorted list of all images 
+    raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
+
+    original_um_x = settings["downsample_steps"]["original_um_x"]
+    original_um_y = settings["downsample_steps"]["original_um_y"]
+    original_um_z = settings["downsample_steps"]["original_um_z"]
+
+    downsampled_um_x = settings["downsample_steps"]["downsampled_um_x"]
+    downsampled_um_y = settings["downsample_steps"]["downsampled_um_y"]
+    downsampled_um_z = settings["downsample_steps"]["downsampled_um_z"]
+
+    ilastik_path = settings["mask_detection"]["ilastik_location"]
+
+    ventricle_masking_ilastik_project = settings["mask_detection"]["ilastik_model"]
+
     #calculate the ratios 
     x_ratio = round(downsampled_um_x/original_um_x)
     y_ratio = round(downsampled_um_y/original_um_y)
@@ -165,4 +193,18 @@ if __name__ == '__main__':
     
     #define dimension dictionaries 
     original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
+    ##calculate the ratios
+    #x_ratio = downsampled_um_x/original_um_x
+    #y_ratio = downsampled_um_y/original_um_y
+    #z_ratio = downsampled_um_z/original_um_z
+    # zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8')
+    mask_us = upsample(downsampled_mask, 
+                        original_um_x, 
+                        original_um_y, 
+                        original_um_z,
+                        downsampled_um_x,
+                        downsampled_um_y,
+                        downsampled_um_z)
+    print(f"Final shape {mask_us.shape}")
+    io.imsave(os.path.join(results_folder, "UPSAMPLED.tif"), mask_us, compress=True)
     
