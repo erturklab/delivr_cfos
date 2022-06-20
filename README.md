@@ -64,6 +64,10 @@ filter coords (size max=104)
 BrainRender.render(coords)
 ```
 
-## Setup
+## Setup and Execution
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r ./inference/inference_requirements.txt` (pip) `conda install --file ./inference/inference_requirements.txt` (anaconda)
+3. Set the location of your raw data in `config.json` under `raw_location`
+4. Set the mask detection parameters accordingly
+5. Run `python __main__.py` in the terminal
+
