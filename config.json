@@ -1,17 +1,21 @@
 {
-    "raw_location":"/media/wirrbel/Moritz_Negwer/c26_3407_cfos647_4x_3x3_20o_6um_stitching/",
+    "raw_location":"/media/rami/4E7F10B756ABEBBE/cFos/TIFFs/c26_3403_cfos647_4x_3x3_20o_6um_stitching/",
     "mask_detection":[
-        "ilastik_location":"/home/wirrbel/ilastik-1.4.0b8-Linux/",
-        "ilastik_model":"/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/2022-04-04_Ilastik_ventricles_pipeline/find_ventricles_downsampled.ilp",
-        "mask_output_location":""
+        "ilastik_location":"/home/rami/Documents/ilastik-1.4.0b27-Linux/",
+        "ilastik_model":"/home/rami/Documents/delivr_cfos/downsample_and_mask/find_ventricles_downsampled.ilp/",
+        "mask_output_location":"/media/rami/18TB/cFos/delivr_pipeline_test/masks/",
+        "downsample_steps":[
+            "original_um_x":1.62,
+            "original_um_y":1.62,
+            "original_um_z":6.0 ,
+            "downsample_um_x":25.0,
+            "downsample_um_y":25.0,
+            "downsample_um_z":25.0
+        ]
     ],
-    "downsample_steps":[
-        "original_um_x":1.62,
-        "original_um_y":1.62,
-        "original_um_z":6.0 ,
-        "downsample_um_x":25.0,
-        "downsample_um_y":25.0,
-        "downsample_um_z":25.0
+    "blob_detection":[
+        "input_location":"",
+        "output_location":""
     ],
     "FLAGS":[
         "SAVE_MASK_DOWNSAMPLED":"False",

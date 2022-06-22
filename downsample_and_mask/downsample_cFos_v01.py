@@ -122,13 +122,13 @@ def downsample_mask(settings):
     #generate a sorted list of all images 
     raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
 
-    original_um_x = settings["downsample_steps"]["original_um_x"]
-    original_um_y = settings["downsample_steps"]["original_um_y"]
-    original_um_z = settings["downsample_steps"]["original_um_z"]
+    original_um_x = settings["downsample_steps"]["mask_detection"]["original_um_x"]
+    original_um_y = settings["downsample_steps"]["mask_detection"]["original_um_y"]
+    original_um_z = settings["downsample_steps"]["mask_detection"]["original_um_z"]
 
-    downsampled_um_x = settings["downsample_steps"]["downsampled_um_x"]
-    downsampled_um_y = settings["downsample_steps"]["downsampled_um_y"]
-    downsampled_um_z = settings["downsample_steps"]["downsampled_um_z"]
+    downsampled_um_x = settings["downsample_steps"]["mask_detection"]["downsampled_um_x"]
+    downsampled_um_y = settings["downsample_steps"]["mask_detection"]["downsampled_um_y"]
+    downsampled_um_z = settings["downsample_steps"]["mask_detection"]["downsampled_um_z"]
 
     ilastik_path = settings["mask_detection"]["ilastik_location"]
 
@@ -203,4 +203,8 @@ def downsample_mask(settings):
                         downsampled_um_z)
     print(f"Final shape {mask_us.shape}")
     io.imsave(os.path.join(results_folder, "UPSAMPLED.tif"), mask_us, compress=True)
+
+    #TODO Make directory for cut files
+    #TODO Cut Raw file
+
     
