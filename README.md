@@ -18,10 +18,30 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 
 ## Setup and Execution
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
-2. Install the requirements using `pip install -r ./inference/inference_requirements.txt` (pip) `conda install --file ./inference/inference_requirements.txt` (anaconda)
+2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
 3. Set the location of your raw data in `config.json` under `raw_location`
 4. Set the mask detection parameters accordingly
 5. Run `python __main__.py` in the terminal
+
+### Config parameters
+- `raw_location` : Location of the raw image files of the brain as individual tiffs
+- `mask_detection` `ilastik_location`  : Location of the ilastik executable file 
+- `mask_detection` `ilastik_model`  : Location of the ilastik model 
+- `mask_detection` `output_location`  : Location where the masked data will be saved to 
+- `mask_detection` `downsample_steps`  : Original resoultion in um as well as downsample factor
+- `blob_detection` `input_location` : Location of the masked data from previous step 
+- `blob_detection` `model_location` : Location of the trained U-Net model
+- `blob_detection` `output_location` : Location where the infered data will be saved to 
+- `postprocessing` `input_location` : Location of the infered data 
+- `postprocessing` `output_location` : Location where the csvs containing the size and location of cells will be saved to 
+- `atlas_alignment` `input_location` : Location of the csvs containing the size and location of cells 
+- `atlas_alignment` `output_location` : Location where the csvs containing the atlas region of each cells will be saved to
+- `visualization` `input_csv_location` : Location of the csvs containing the atlas region of each cell 
+- `visualization` `input_size_location` : Location of the csvs containing the size and location of cells 
+- `visualization` `input_prediction_location` : Location of the infered data 
+- `visualization` `cache_location` : Location for cached data 
+- `visualization` `output_location` : Location of the final results, volumes where each cell is colored according to their atlas region
+- `FLAGS` : currently inactive 
 
 ## Pipeline overview
 ### Downsampling, Masking, Upsampling
