@@ -24,10 +24,18 @@
     },
     "atlas_alignment":{
         "input_location":"/data/blob_count/",
+        "mBrainAligner_location":"/path/to/mBrainAligner/",
+        "collection_folder":"/data/atlas_alignment/collection/",
         "output_location":"/data/atlas_alignment/"
     },
+    "region_assignment":{
+        "input_location":"/data/atlas_alignment/collection/",
+        "CCF3_atlasfile":"/models/CCF3_P56_annotation.tif",
+        "CCF3_ontology":"/models/AllenMouseCCFv3_ontology_22Feb2021.xml",
+        "output_location":"/data/region_assignment/"
+    },
     "visualization":{
-        "input_csv_location":"/data/atlas_alignment",
+        "input_csv_location":"/data/region_assignment",
         "input_size_location":"/data/blob_count/",
         "input_prediction_location":"/data/inference/",
         "cache_location":"/data/cache/",
