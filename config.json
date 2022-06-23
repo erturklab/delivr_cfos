@@ -2,7 +2,7 @@
     "raw_location":"/data/raw/",
     "mask_detection":{
         "ilastik_location":"/path/to/ilastik/",
-        "ilastik_model":"/data/weights/ilastik.ilp",
+        "ilastik_model":"/models/random_forest_weights.ilp ",
         "output_location":"/data/preprocessing/",
         "downsample_steps":{
             "original_um_x":1.62,
@@ -15,7 +15,7 @@
     },
     "blob_detection":{
         "input_location":"/data/preprocessing/",
-        "model_location":"/data/weights/unet.tar",
+        "model_location":"/models/inference_weights.tar",
         "output_location":"/data/inference/"
     },
     "postprocessing":{
