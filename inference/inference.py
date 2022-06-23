@@ -55,7 +55,7 @@ def run_inference(
     niftis,
     output_folder,
     comment="none",
-    model_weights="inference/model_weights/weights.tar",
+    model_weights="weights/inference_weights.tar",
     tta=True,
     threshold=0.5,
     cuda_devices="0,1",
@@ -264,12 +264,3 @@ def run_inference(
 
     print("end:", time.strftime("%Y-%m-%d_%H-%M-%S"))
     return testing_session_path
-
-
-if __name__ == "__main__":
-    batch = Path("the_data_to_infer")
-    mice = batch.dirs()
-
-    for mouse in mice:
-        slices = mouse.files("*.nii.gz")
-        run_inference(niftis=slices, comment=mouse.name)

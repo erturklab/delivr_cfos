@@ -1,7 +1,7 @@
 import os
 import json
 from path import Path
-from downsample_and_mask import downsample_cFos_v01.py as downsample
+from downsample_and_mask.downsample_and_mask import downsample_mask
 from inference import inference 
 from count_blobs import count_blobs
 from blob_highlighter import blob_highlighter
@@ -12,7 +12,7 @@ with open("config.json","r") as file:
     settings = json.loads(file.read())
 
 # Downsample
-downsample.downsample.mask(settings)
+downsample.downsample_mask(settings)
 
 # Infer
 batch_path = ""
