@@ -19,11 +19,10 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 ## Setup and Execution
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
-3. Set the location of your raw data in `config.json` under `raw_location`
-4. Set the mask detection parameters accordingly
+3. Set the location of your raw data and intermediate folders in `config.json`
 5. Run `python __main__.py` in the terminal
 
-### Config parameters
+### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
 - `mask_detection` `ilastik_location`  : Location of the ilastik executable file 
 - `mask_detection` `ilastik_model`  : Location of the ilastik model 
