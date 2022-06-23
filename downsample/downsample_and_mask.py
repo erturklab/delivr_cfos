@@ -129,13 +129,13 @@ def downsample_mask(settings, brain):
     #generate a sorted list of all images 
     raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
 
-    original_um_x = settings["downsample_steps"]["mask_detection"]["original_um_x"]
-    original_um_y = settings["downsample_steps"]["mask_detection"]["original_um_y"]
-    original_um_z = settings["downsample_steps"]["mask_detection"]["original_um_z"]
+    original_um_x = settings["mask_detection"]["downsample_steps"]["original_um_x"]
+    original_um_y = settings["mask_detection"]["downsample_steps"]["original_um_y"]
+    original_um_z = settings["mask_detection"]["downsample_steps"]["original_um_z"]
 
-    downsampled_um_x = settings["downsample_steps"]["mask_detection"]["downsampled_um_x"]
-    downsampled_um_y = settings["downsample_steps"]["mask_detection"]["downsampled_um_y"]
-    downsampled_um_z = settings["downsample_steps"]["mask_detection"]["downsampled_um_z"]
+    downsampled_um_x = settings["mask_detection"]["downsample_steps"]["downsampled_um_x"]
+    downsampled_um_y = settings["mask_detection"]["downsample_steps"]["downsampled_um_y"]
+    downsampled_um_z = settings["mask_detection"]["downsample_steps"]["downsampled_um_z"]
 
     ilastik_path = settings["mask_detection"]["ilastik_location"]
 
