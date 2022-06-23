@@ -13,6 +13,7 @@ from scipy.ndimage import zoom
 import numpy as np
 import multiprocessing as mp 
 import tempfile
+import cv2
 
 def get_real_size(raw_folder):
     z = len([i for i in os.listdir(raw_folder) if ".tif" in i])
@@ -216,7 +217,7 @@ def downsample_mask(settings, brain):
         mask_us = np.swapaxes(mask_us, 1, 2)
 
     for i, item in enumerate(os.listdir(settings["raw_location"])):
-        img = io.imread(settings["raw_location"] + item)
+        img = cv2.imread(settings["raw_location"] + item)
         img *= mask_us[i]
         io.imsave(os.path.join(results_folder, item), img)
 
