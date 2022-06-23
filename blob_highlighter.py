@@ -107,7 +107,7 @@ def get_color_set(df):
 
 def blob_highlighter(settings):
     """Color blobs by their corresponding atlas region
-    ""blob_highlighter(settings)"
+    """
 
     path_binary         = settings["visualization"]["input_prediction_location"]
     if settings["visualization"]["input_size_location"] == "":
