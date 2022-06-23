@@ -133,9 +133,9 @@ def downsample_mask(settings, brain):
     original_um_y = settings["mask_detection"]["downsample_steps"]["original_um_y"]
     original_um_z = settings["mask_detection"]["downsample_steps"]["original_um_z"]
 
-    downsampled_um_x = settings["mask_detection"]["downsample_steps"]["downsampled_um_x"]
-    downsampled_um_y = settings["mask_detection"]["downsample_steps"]["downsampled_um_y"]
-    downsampled_um_z = settings["mask_detection"]["downsample_steps"]["downsampled_um_z"]
+    downsampled_um_x = settings["mask_detection"]["downsample_steps"]["downsample_um_x"]
+    downsampled_um_y = settings["mask_detection"]["downsample_steps"]["downsample_um_y"]
+    downsampled_um_z = settings["mask_detection"]["downsample_steps"]["downsample_um_z"]
 
     ilastik_path = settings["mask_detection"]["ilastik_location"]
 
