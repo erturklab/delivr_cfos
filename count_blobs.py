@@ -4,7 +4,7 @@ import pandas as pd
 import cc3d
 import datetime
 
-from util_pkg.filehandling import read_nifti
+from filehandling import read_nifti
 
 def count_blobs(settings):
     path_in     = settings["postprocessing"]["input_location"]

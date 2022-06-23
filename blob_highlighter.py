@@ -5,7 +5,7 @@ import pickle
 import cv2
 import numpy as np
 import pandas as pd
-from util_pkg.filehandling import read_nifti, write_nifti
+from filehandling import read_nifti, write_nifti
 from skimage.morphology import binary_dilation
 from skimage.draw import ellipsoid
 
