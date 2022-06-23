@@ -143,7 +143,7 @@ def downsample_mask(settings):
     z_series = np.arange(0,len(raw_image_list),z_ratio)
     
     #create a new results folder
-    results_folder = settings["mask_detection"]["mask_output_location"]
+    results_folder = settings["mask_detection"]["output_location"]
     if results_folder == "":
         parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
         results_folder = os.path.join(parent_dir,raw_folder+'_results')

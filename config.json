@@ -3,7 +3,7 @@
     "mask_detection":[
         "ilastik_location":"/home/rami/Documents/ilastik-1.4.0b27-Linux/",
         "ilastik_model":"/home/rami/Documents/delivr_cfos/downsample_and_mask/find_ventricles_downsampled.ilp/",
-        "mask_output_location":"/media/rami/18TB/cFos/delivr_pipeline_test/masks/",
+        "output_location":"/media/rami/18TB/cFos/delivr_pipeline_test/masks/",
         "downsample_steps":[
             "original_um_x":1.62,
             "original_um_y":1.62,
@@ -15,6 +15,22 @@
     ],
     "blob_detection":[
         "input_location":"",
+        "model_location":"",
+        "output_location":""
+    ],
+    "postprocessing":[
+        "input_location":"",
+        "output_location":""
+    ],
+    "atlas_alignment":[
+        "input_location":"",
+        "output_location":""
+    ],
+    "visualization":[
+        "input_csv_location":"",
+        "input_size_location":"",
+        "input_prediction_location":"",
+        "cache_location":"",
         "output_location":""
     ],
     "FLAGS":[
