@@ -78,10 +78,8 @@ def rewrite_swc(entry, output_dir,XYZ=False):
         file["y"] = split[1]
         file["z"] = split[2]
         
-        
     file.drop("Coords",axis=1,inplace=True)
     file.drop("Unnamed: 0",axis=1,inplace=True)
-
 
     #round to 3 post-comma digits
     file["x"] = file["x"].astype('float').round(3)
@@ -92,17 +90,6 @@ def rewrite_swc(entry, output_dir,XYZ=False):
     #ax = file["Size"].plot.hist(bins=1000,log=True) #with log scale
     #ax = file["Size"].plot.hist(bins=1000,log=False) #on linear scale 
 
-    #filter out blood vessels (cutoff set to 200 voxel size, empirically based on histogram plots. 
-    #NOTE this cutoff will need to be adapted when analyzing images with a different resolution). 
-    '''
-    cutoff_min = 9
-    cutoff_max = 200
-
-    file_filtered = file[file['Size'] < cutoff_max]
-    file_filtered = file_filtered[file_filtered['Size'] > cutoff_min]
-    #separate table for putative blood vessels
-    blood_vessels = file[file['Size'] >= cutoff_max]
-    '''
     #Other option (default as of v06): do not filter here, and filter after the atlas transform instead 
     file_filtered = file.copy()
     
@@ -110,24 +97,9 @@ def rewrite_swc(entry, output_dir,XYZ=False):
 
     #insert structure columns with value =1 (should be soma according to this definition)
     file_filtered.insert(0,"Structure", 1)
-    
-    #optional if you want to keep size in voxel units to be transformed to atlas coordinates (then in 25um voxels)
-    '''
-    #calculates the Size as radius from its original meaning as volume in voxels 
-    file_filtered['Size'] = np.cqbrt((file_filtered['Size'].divide(np.pi))*(4/3))
-    '''
+
     #reorder columns so that size is at end again 
     file_filtered = file_filtered[["Structure","x","y","z","Size"]]
-    
-    #Other option (defalt): drop size, replace with artificial size of 10 to satisfy swc definitions 
-    #file_filtered = file_filtered[["Structure","x","y","z","Size"]]
-    #file_filtered['Size'] = 10
-
-    #Depends per brain: Flip Z axis 
-    #file_filtered["z"] = 737-file_filtered["z"] 
-
-    #Depends per brain: Swap X and Z axis 
-    #file_filtered = file_filtered[["Structure","z","y","x","Size"]]
 
     #add "Parent" column pointing to -1 (=no parent in swc notation)
     file_filtered.insert(5,"Parent", -1)
@@ -170,9 +142,6 @@ def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results
     csv_path = glob.glob(entry+"/*binary.csv")[0]
     original_csv = pd.read_csv(csv_path)
     #merge to new df
-    #merged = pd.merge(registered_cells,original_csv[['Unnamed: 0','Size']],left_on='n', right_on='Unnamed: 0',how='outer')
-    #clean up df 
-    #merged = merged.drop(['radius','parent','Unnamed: 0'],axis=1)
     merged = registered_cells.copy()
     merged['Size'] = original_csv['Size']
     merged = merged.drop(['radius','parent'],axis=1)
@@ -340,74 +309,6 @@ if __name__ == "__main__":
     
     
     #after alignment has been run, run swc_reg in parallel 
-    #pool = mp.Pool(processes=4)
     pool = mp.Pool(processes=mp.cpu_count())
     mouse_list = [pool.apply_async(run_mbrainaligner_and_swc_reg,args=(brain,)) for brain in brain_list]
     
-    '''
-    #### === 3420 === ###
-    entry = "E:/2021-10-17_cFos_realignments/PBS_3420_cfos647_4x_3x3_20o_6um_stiching_preprocessing_artefactremoval_results"
-    #define source file. This WILL fail if there is more than one v3draw file in the folder! 
-    source_file = glob.glob(entry+"/*.v3draw")[0]
-    print (source_file)
-    
-    #extract mouse name from entry directory 
-    mouse_name = os.path.split(entry)[1][:9]
-    
-    #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
-    output_dir = os.path.join(entry,"2022-03-14_mBrainAlign_"+ mouse_name)
-    try: 
-        os.mkdir(output_dir)
-    except:
-        pass    
-
-    #run mBrainAligner-to-atlas registration
-    atlas_align(source_file,output_dir,mouse_name)
-    
-    #rewrite swc from Rami's blob swc
-    swc_file = rewrite_swc(entry, output_dir)
-    
-    #align swc to atlas (experimental)
-    
-    try:
-        register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder)
-    except:
-        print('failed to register swcs for mouse ' + mouse_name)
-        pass
-    
-    register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder)
-    '''
-    '''
-    ### === 3411 and 3407 with XYZ === ### 
-    #entry = "E:/2021-10-17_cFos_realignments/c26_3411_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results"
-    for entry in xyz_brain_list:
-        #define source file. This WILL fail if there is more than one v3draw file in the folder! 
-        source_file = glob.glob(entry+"/*.v3draw")[0]
-        print (source_file)
-        
-        #extract mouse name from entry directory 
-        mouse_name = os.path.split(entry)[1][:9]
-        
-        #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
-        output_dir = os.path.join(entry,"2022-03-07_mBrainAlign_"+ mouse_name)
-        try: 
-            os.mkdir(output_dir)
-        except:
-            pass    
-        
-        #run mBrainAligner-to-atlas registration
-        atlas_align(source_file,output_dir,mouse_name)
-        
-        #rewrite swc from Rami's blob swc
-        swc_file = rewrite_swc(entry, output_dir,XYZ=True)
-        
-        #align swc to atlas (experimental)
-        
-        try:
-            register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=True)
-        except:
-            print('failed to register swcs for mouse ' + mouse_name)
-            pass
-        
-        register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=True)
-        '''
