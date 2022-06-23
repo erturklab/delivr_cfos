@@ -16,7 +16,7 @@ We recommend the latest beta version from the official website: https://www.ilas
 ### File requirements
 We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 1.62 x 1.62 x 6 µm (x/y/z/) voxel size. 
 
-## Setup
+## Setup and Execution 
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
 3. Set the location of your raw data and ilastik installation path in `config.json`
@@ -25,9 +25,7 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 6. Download the Allen Brain Atlas CCF3 version we used, and place it in the `/models/` folder. Use the following dropbox link: https://www.dropbox.com/s/inxmi2qv3sgzz50/CCF3_P56_annotation.tif?dl=0 
 7. (Optional: Download the test raw data from this dropbox link (50 Gb total) and place the tiff files into `/data/raw/`: https://www.dropbox.com/sh/k3y7h0yovrsoz01/AABVodOqGKMdswRbV6DGhdUBa?dl=0 )
 8. (If required, download the intermediate results and move them to into `/data/`)
-
-## Execution
-10. Run `python __main__.py` in the terminal
+9. Run `python __main__.py` in the terminal
 
 ### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
