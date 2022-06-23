@@ -14,14 +14,15 @@ Python 3.8 on Linux for Visualization
 We recommend the latest beta version from the official website: https://www.ilastik.org/download.html. We used 1.4.0b26. 
 
 ### File requirements
-We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 3.25 x 3.25 x 6 µm (x/y/z/) voxel size. 
+We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 1.62 x 1.62 x 6 µm (x/y/z/) voxel size. 
 
 ## Setup and Execution
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
 3. Set the location of your raw data and ilastik installation path in `config.json`
-4. (If required, download the intermediate results and move them to into `/data/`)
-5. Run `python __main__.py` in the terminal
+4. (Optional: Download the test raw data from this dropbox link (50 Gb total) and place the tiff files into `/data/raw/`: https://www.dropbox.com/sh/k3y7h0yovrsoz01/AABVodOqGKMdswRbV6DGhdUBa?dl=0 )
+5. (If required, download the intermediate results and move them to into `/data/`)
+6. Run `python __main__.py` in the terminal
 
 ### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
