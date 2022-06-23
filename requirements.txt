@@ -12,3 +12,4 @@ tqdm==4.62.1
 nibabel==3.2.1
 path==16.2.0
 opencv-python==4.6.0.66
+pandas==1.4.3
