@@ -1,9 +1,9 @@
 {
-    "raw_location":"/media/rami/4E7F10B756ABEBBE/cFos/TIFFs/c26_3403_cfos647_4x_3x3_20o_6um_stitching/",
+    "raw_location":"",
     "mask_detection":[
-        "ilastik_location":"/home/rami/Documents/ilastik-1.4.0b27-Linux/",
-        "ilastik_model":"/home/rami/Documents/delivr_cfos/downsample_and_mask/find_ventricles_downsampled.ilp/",
-        "output_location":"/media/rami/18TB/cFos/delivr_pipeline_test/masks/",
+        "ilastik_location":"",
+        "ilastik_model":"",
+        "output_location":"",
         "downsample_steps":[
             "original_um_x":1.62,
             "original_um_y":1.62,
