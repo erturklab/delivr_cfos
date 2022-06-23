@@ -14,6 +14,12 @@ import numpy as np
 import multiprocessing as mp 
 import tempfile
 
+def get_real_size(raw_folder):
+    z = len([i for i in os.listdir(raw_folder) if ".tif" in i])
+    img = cv2.imread(raw_folder + "/" + os.listdir(raw_folder)[10])
+    x = img.shape[0]
+    y = img.shape[1]
+    return (x, y, z)
 
 def downsample_zplanes(raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_dir,z_planes):
     #define empty chunk list 
@@ -115,10 +121,10 @@ def upsample(image : np.array,
 
     
 # if __name__ == '__main__':
-def downsample_mask(settings):
+def downsample_mask(settings, brain):
 
     #stitched images are here 
-    raw_location = settings["raw_location"]
+    raw_location = os.path.join(settings["raw_location"], brain)
     #generate a sorted list of all images 
     raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
 
@@ -202,9 +208,17 @@ def downsample_mask(settings):
                         downsampled_um_y,
                         downsampled_um_z)
     print(f"Final shape {mask_us.shape}")
-    io.imsave(os.path.join(results_folder, "UPSAMPLED.tif"), mask_us, compress=True)
+    
+    raw_shape = get_real_size(settings["raw_location"])
 
-    #TODO Make directory for cut files
-    #TODO Cut Raw file
+    if mask_us.shape != raw_shape:
+        mask_us = np.squeeze(mask_us)
+        mask_us = np.swapaxes(mask_us, 1, 2)
+
+    for i, item in enumerate(os.listdir(settings["raw_location"])):
+        img = io.imread(settings["raw_location"] + item)
+        img *= mask_us[i]
+        io.imsave(os.path.join(results_folder, item), img)
+
 
     

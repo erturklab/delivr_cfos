@@ -12,7 +12,8 @@ with open("config.json","r") as file:
     settings = json.loads(file.read())
 
 # Downsample
-downsample.downsample_mask(settings)
+for brain in os.listdir(settings["mask_detection"]["input_location"]):
+    downsample.downsample_mask(settings, brain)
 
 # Infer
 batch_path = ""
