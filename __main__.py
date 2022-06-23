@@ -1,18 +1,37 @@
 import os
 import json
 from path import Path
-from downsample_and_mask.downsample_and_mask import downsample_mask
+from downsample.downsample_and_mask import downsample_mask
 from inference import inference 
 from count_blobs import count_blobs
 from blob_highlighter import blob_highlighter
+
+def setup_subfolders(dict_entry):
+    for item in dict_entry.values():
+        if isinstance(item, dict):
+            setup_subfolders(item)
+        elif isinstance(item, str):
+            if "/data/" in item and item[-1] == "/":
+                item = item.replace("/data/","./data/")
+                if not os.path.exists(item):
+                    os.mkdir(item)
+
+def setup_folders(settings):
+    if not os.path.exists("./data/"):
+        os.mkdir("./data/")
+    setup_subfolders(settings)
+
 
 # Load settings
 settings = {}
 with open("config.json","r") as file:
     settings = json.loads(file.read())
 
+# Setup the file structure
+setup_folders(settings)
+
 # Downsample
-for brain in os.listdir(settings["mask_detection"]["input_location"]):
+for brain in os.listdir(settings["raw_location"]):
     downsample.downsample_mask(settings, brain)
 
 # Infer

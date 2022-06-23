@@ -19,7 +19,8 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 ## Setup and Execution
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
-3. Set the location of your raw data and intermediate folders in `config.json`
+3. Set the location of your raw data and ilastik installation path in `config.json`
+4. (If required, download the intermediate results and move them to into `/data/`)
 5. Run `python __main__.py` in the terminal
 
 ### Config.json parameters

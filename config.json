@@ -1,42 +1,42 @@
 {
-    "raw_location":"",
-    "mask_detection":[
-        "ilastik_location":"",
-        "ilastik_model":"",
-        "output_location":"",
-        "downsample_steps":[
+    "raw_location":"/data/raw/",
+    "mask_detection":{
+        "ilastik_location":"/path/to/ilastik/",
+        "ilastik_model":"/data/weights/ilastik.ilp",
+        "output_location":"/data/preprocessing/",
+        "downsample_steps":{
             "original_um_x":1.62,
             "original_um_y":1.62,
             "original_um_z":6.0 ,
             "downsample_um_x":25.0,
             "downsample_um_y":25.0,
             "downsample_um_z":25.0
-        ]
-    ],
-    "blob_detection":[
-        "input_location":"",
-        "model_location":"",
-        "output_location":""
-    ],
-    "postprocessing":[
-        "input_location":"",
-        "output_location":""
-    ],
-    "atlas_alignment":[
-        "input_location":"",
-        "output_location":""
-    ],
-    "visualization":[
-        "input_csv_location":"",
-        "input_size_location":"",
-        "input_prediction_location":"",
-        "cache_location":"",
-        "output_location":""
-    ],
-    "FLAGS":[
+        }
+    },
+    "blob_detection":{
+        "input_location":"/data/preprocessing/",
+        "model_location":"/data/weights/unet.tar",
+        "output_location":"/data/inference/"
+    },
+    "postprocessing":{
+        "input_location":"/data/inference/",
+        "output_location":"/data/blob_count/"
+    },
+    "atlas_alignment":{
+        "input_location":"/data/blob_count/",
+        "output_location":"/data/atlas_alignment/"
+    },
+    "visualization":{
+        "input_csv_location":"/data/atlas_alignment",
+        "input_size_location":"/data/blob_count/",
+        "input_prediction_location":"/data/inference/",
+        "cache_location":"/data/cache/",
+        "output_location":"/data/results/"
+    },
+    "FLAGS":{
         "SAVE_MASK_DOWNSAMPLED":"False",
         "SAVE_MASK_UPSAMPLED":"False",
         "SAVE_MASKED_IMAGE":"False",
         "SAVE_NETWORK_OUTPUT":"False"
-    ]
+    }
 }
