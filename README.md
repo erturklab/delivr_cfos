@@ -16,6 +16,13 @@ We recommend the latest beta version from the official website: https://www.ilas
 ### File requirements
 We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 3.25 x 3.25 x 6 µm (x/y/z/) voxel size. 
 
+## Setup and Execution
+1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
+2. Install the requirements using `pip install -r ./inference/inference_requirements.txt` (pip) `conda install --file ./inference/inference_requirements.txt` (anaconda)
+3. Set the location of your raw data in `config.json` under `raw_location`
+4. Set the mask detection parameters accordingly
+5. Run `python __main__.py` in the terminal
+
 ## Pipeline overview
 ### Downsampling, Masking, Upsampling
 Pseudocode:
@@ -63,11 +70,3 @@ load mBrainAligner_transformed_file as coords
 filter coords (size max=104)
 BrainRender.render(coords)
 ```
-
-## Setup and Execution
-1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
-2. Install the requirements using `pip install -r ./inference/inference_requirements.txt` (pip) `conda install --file ./inference/inference_requirements.txt` (anaconda)
-3. Set the location of your raw data in `config.json` under `raw_location`
-4. Set the mask detection parameters accordingly
-5. Run `python __main__.py` in the terminal
-
