@@ -32,7 +32,7 @@ setup_folders(settings)
 
 # Downsample
 for brain in os.listdir(settings["raw_location"]):
-    downsample.downsample_mask(settings, brain)
+    downsample_mask(settings, brain)
 
 # Infer
 batch_path = ""
@@ -40,7 +40,7 @@ batch_path = ""
 if settings["blob_detection"]["input_location"] == "":
     batch = Path(settings["mask_detection"]["mask_output_location"])
 else:
-    Path(settings["blob_detection"]["input_location"])
+    batch = Path(settings["blob_detection"]["input_location"])
 
 mice = batch.dirs()
 

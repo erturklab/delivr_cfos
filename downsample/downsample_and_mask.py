@@ -14,10 +14,11 @@ import numpy as np
 import multiprocessing as mp 
 import tempfile
 import cv2
+import datetime
 
 def get_real_size(raw_folder):
     z = len([i for i in os.listdir(raw_folder) if ".tif" in i])
-    img = cv2.imread(raw_folder + "/" + os.listdir(raw_folder)[10])
+    img = cv2.imread(raw_folder + "/" + os.listdir(raw_folder)[0])
     x = img.shape[0]
     y = img.shape[1]
     return (x, y, z)
@@ -53,10 +54,8 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     res = os.system(cmd)
     
     #reassemble images
-    mask_dir = os.path.join(results_folder,'ventricles_zplanes')
-    mask_list = sorted([os.path.join(mask_dir,file) for file in os.listdir(mask_dir)])
-    mask = io.imread_collection(mask_list)
-    mask = io.concatenate_images(mask)
+    mask_dir = os.path.join(results_folder,downsampled_name + ".tif")
+    mask = io.imread(mask_dir) 
     
     #cast to 8-bit (should be superfluous)
     mask = mask.astype('uint8')
@@ -114,9 +113,9 @@ def upsample(image : np.array,
     Returns:
         mask_us (np.array) : Upscaled image
     """
-    x_ratio = downsampled_um_x/original_um_x
-    y_ratio = downsampled_um_y/original_um_y
-    z_ratio = downsampled_um_z/original_um_z
+    x_ratio = downsample_um_x/original_um_x
+    y_ratio = downsample_um_y/original_um_y
+    z_ratio = downsample_um_z/original_um_z
     mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
     return mask_us
 
@@ -127,7 +126,7 @@ def downsample_mask(settings, brain):
     #stitched images are here 
     raw_location = os.path.join(settings["raw_location"], brain)
     #generate a sorted list of all images 
-    raw_image_list = sorted(glob.glob(raw_location+'*.tif'))
+    raw_image_list = sorted(glob.glob(raw_location+'/*.tif'))
 
     original_um_x = settings["mask_detection"]["downsample_steps"]["original_um_x"]
     original_um_y = settings["mask_detection"]["downsample_steps"]["original_um_y"]
@@ -167,12 +166,13 @@ def downsample_mask(settings, brain):
 
     #run resampling in parallel 
     for z_planes in zip(z_series,z_series[1:]):
-        print(z_planes)
         pool.apply_async(downsample_zplanes, (raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_dir,z_planes))
     
-    #close pool 
+    ##close pool 
     pool.close()
     pool.join()
+    # for z_planes in zip(z_series, z_series[1:]):
+    #     downsample_zplanes(raw_location, raw_image_list, x_ratio, y_ratio, z_ratio, temp_dir, z_planes)
     
     #list images 
     downsampled_list = sorted([os.path.join(temp_dir.name, file) for file in os.listdir(temp_dir.name)])
@@ -182,7 +182,14 @@ def downsample_mask(settings, brain):
     
     #reassemble images to one big stack 
     downsampled_stack = io.imread_collection(downsampled_list)
-    downsampled_stack = io.concatenate_images(downsampled_stack)
+    try:
+        downsampled_stack = io.concatenate_images(downsampled_stack)
+    except ValueError as ve:
+        if len(downsampled_list) > 0:
+            print(f"{ve}: {downsampled_list[0]} {downsampled_list[-1]}")
+            exit()
+        else:
+            print("Downsampled list empty!")
     
     #save as new stack in results_folder
     downsampled_name = 'stack_resampled'
@@ -192,7 +199,14 @@ def downsample_mask(settings, brain):
     temp_dir.cleanup()
     
     #run Ilastik 
+    print(results_folder)
+    print(downsampled_name)
+    print(ilastik_path)
+    print(ventricle_masking_ilastik_project)
+    start = datetime.datetime.now()
     downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
+    delta = datetime.datetime.now() -start
+    print(f"Ilastik: {delta}")
     
     #define dimension dictionaries 
     original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
@@ -201,25 +215,44 @@ def downsample_mask(settings, brain):
     #y_ratio = downsampled_um_y/original_um_y
     #z_ratio = downsampled_um_z/original_um_z
     # zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8')
-    mask_us = upsample(downsampled_mask, 
-                        original_um_x, 
-                        original_um_y, 
-                        original_um_z,
-                        downsampled_um_x,
-                        downsampled_um_y,
-                        downsampled_um_z)
-    print(f"Final shape {mask_us.shape}")
+    # mask_us = upsample(downsampled_mask, 
+    #                     original_um_x, 
+    #                     original_um_y, 
+    #                     original_um_z,
+    #                     downsampled_um_x,
+    #                     downsampled_um_y,
+    #                     downsampled_um_z)
+
+    raw_shape = get_real_size(raw_location)
+    print(f"Before upsampling: {downsampled_mask.shape}")
+    print(f"Raw shape {raw_shape}")
+
+    z_ratio = raw_shape[2] / downsampled_mask.shape[0] 
+    y_ratio = raw_shape[0] / downsampled_mask.shape[1] 
+    x_ratio = raw_shape[1] / downsampled_mask.shape[2] 
+
+    start = datetime.datetime.now()
+    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8')
+    delta = datetime.datetime.now() - start
+    print(f"Zoom: {delta}")
     
-    raw_shape = get_real_size(settings["raw_location"])
+    mask_us = np.swapaxes(mask_us, 0, 2)
+    
+    print(f"Final shape {mask_us.shape}")
+ 
 
     if mask_us.shape != raw_shape:
         mask_us = np.squeeze(mask_us)
-        mask_us = np.swapaxes(mask_us, 1, 2)
-
-    for i, item in enumerate(os.listdir(settings["raw_location"])):
-        img = cv2.imread(settings["raw_location"] + item)
-        img *= mask_us[i]
+        mask_us = np.swapaxes(mask_us, 0, 1)
+    print(f"Saving final masked data {mask_us.shape}\n")
+    start = datetime.datetime.now()
+    for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
+        img = cv2.imread(raw_location + "/" + item, -1)
+        print(f"{item} {i} / {mask_us.shape[2]} MASK {mask_us.shape} RAW {img.shape}")
+        img *= mask_us[:,:,i]
         io.imsave(os.path.join(results_folder, item), img)
+    delta = datetime.datetime.now() - start
+    print(f"Masking: {delta}")
 
 
     

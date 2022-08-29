@@ -1,9 +1,9 @@
 {
-    "raw_location":"/data/raw/",
+    "raw_location":"/media/10TB/Projects/cFos/DELIVR_TEST/raw/",
     "mask_detection":{
-        "ilastik_location":"/path/to/ilastik/",
-        "ilastik_model":"/models/random_forest_weights.ilp ",
-        "output_location":"/data/preprocessing/",
+        "ilastik_location":"/home/rami/Downloads/ilastik-1.3.3post3-Linux/",
+        "ilastik_model":"/media/10TB/Projects/cFos/DELIVR_TEST/mask_detection/ilastik_model/random_forest_weights.ilp",
+        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/mask_detection/output/",
         "downsample_steps":{
             "original_um_x":1.62,
             "original_um_y":1.62,
@@ -14,24 +14,24 @@
         }
     },
     "blob_detection":{
-        "input_location":"/data/preprocessing/",
-        "model_location":"/models/inference_weights.tar",
-        "output_location":"/data/inference/"
+        "input_location":"/media/10TB/Projects/cFos/DELIVR_TEST/mask_detection/output/",
+        "model_location":"/media/10TB/Projects/cFos/DELIVR_TEST/blob_detection/model/inference_weights.tar",
+        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/blob_detection/output/"
     },
     "postprocessing":{
-        "input_location":"/data/inference/",
-        "output_location":"/data/blob_count/"
+        "input_location":"/media/10TB/Projects/cFos/DELIVR_TEST/blob_detection/output/",
+        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/postprocessing/output/"
     },
     "atlas_alignment":{
-        "input_location":"/data/blob_count/",
-        "output_location":"/data/atlas_alignment/"
+        "input_location":"/media/10TB/Projects/cFos/DELIVR_TEST/postprocessing/output/",
+        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/atlas_alignment/output/"
     },
     "visualization":{
-        "input_csv_location":"/data/atlas_alignment",
-        "input_size_location":"/data/blob_count/",
-        "input_prediction_location":"/data/inference/",
-        "cache_location":"/data/cache/",
-        "output_location":"/data/results/"
+        "input_csv_location":       "/media/10TB/Projects/cFos/DELIVR_TEST/atlas_alignment/output/",
+        "input_size_location":      "/media/10TB/Projects/cFos/DELIVR_TEST/postprocessing/output/",
+        "input_prediction_location":"/media/10TB/Projects/cFos/DELIVR_TEST/blob_detection/output/",
+        "cache_location":           "/media/10TB/Projects/cFos/DELIVR_TEST/visualization/cache/",
+        "output_location":          "/media/10TB/Projects/cFos/DELIVR_TEST/visualization/output/"
     },
     "FLAGS":{
         "SAVE_MASK_DOWNSAMPLED":"False",
