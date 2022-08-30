@@ -15,33 +15,48 @@ import shutil
 import multiprocessing as mp
 import numpy as np
 
-def atlas_align(source_file, output_dir,mouse_name,mBrainAligner_location): 
+import pandas as pd
+import os
+import glob
+import re
+import tifffile 
+import shutil
+import multiprocessing as mp
+import numpy as np
+
+def atlas_align(source_file, output_dir,mouse_name): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
     #first (global) alignment 
-    cmd_global = str (mBrainAligner_location + "/binary/win64_bin/global_registration.exe " + 
-    " -f " + mBrainAligner_location + "/examples/target/CCF_u8_xpad.v3draw" +
-    " -c " + mBrainAligner_location + "/examples/target/CCF_mask.v3draw "+
+    cmd_global = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/global_registration " + 
+    " -f /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " +
     " -m " + str(source_file) +
     " -p r+f+n " +
     " -o " + str(output_dir)+ 
-    " -d 70")
+    " -d 70 " +
+    " -l 30+30+30 " +
+    " -u 0" )
     
-    print ('running global alignment for mouse ' + str(mouse_name))
+    
+    #print ('running global alignment for mouse ' + str(mouse_name))
+    print("global alignment command: ", cmd_global)
     #run the command via command line 
     res_global = os.system(cmd_global)
     
     #second (local) alignment 
-    cmd_local = str (mBrainAligner_location + "/binary/win64_bin/local_registration.exe " + 
-    " -p " + mBrainAligner_location + "/examples/config/LSFM_config.txt " + 
+    cmd_local = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/local_registration " + 
+    " -p /home/wirrbel/2022-08-25_mbrainaligner/examples/config/LSFM_config_DeliVR.txt " + 
     " -s " + str(output_dir) + "/global.v3draw " +
-    " -l " + mBrainAligner_location + "/examples/target/target_landmarks/low_landmarks.marker " + 
-    " -g " + mBrainAligner_location + "/examples/target " + 
-    " -o " + str(output_dir + "/"))
+    " -l /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/target_landmarks/low_landmarks.marker " + 
+    " -g /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " + 
+    " -o " + str(output_dir + "/")+
+    " -u 0")
     
-    print ('running local alignment for mouse ' + str(mouse_name))
+    #print ('running local alignment for mouse ' + str(mouse_name))
+    print("local alignment command: ", cmd_local)
     #run the command via command line 
     res_local = os.system(cmd_local)
+
 
 def rewrite_swc(entry, output_dir,XYZ=False):
     #define source file 
@@ -159,23 +174,17 @@ def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results
     #shutil.copyfile(swc_local, os.path.join(aligned_results_folder,str(mouse_name)+"_local_registered_data.swc"))
 
 
-def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False,mBrainAligner_location): 
+def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False): 
     #run mBrainaligner s swc registration 
     #create a command that looks like this: 
     '''
-    swc_registration.exe ^
-    -C ./test\autofluo_resampled.tif_RPM_tar.marker ^
-    -M ./test\autofluo_resampled.tif_RPM_sub.marker ^
-    -o ./test\test_3407.swc ^
-    -T ./test\ori_local_registered_tar.marker ^
-    -S ./test\ori_local_registered_sub.marker ^
-    -d ./test\autofluo_resampled.tif_FFD_grid.swc ^
-    -X 5616 -Y 6656 -Z 737 ^
-    -x 364 -y 432 -z 176 ^
-    -a 324 -b 200 -c 268 -p 20 ^
-    -r ./result\resampled.swc ^
-    -f ./result\global_data.swc ^
-    -s ./result\local_registered_data.swc
+    ../binary/linux_bin/local_registration  
+    -p config/LSFM_config_original.txt 
+    -s result/LSFM/global.v3draw 
+    -l target/50um/target_landmarks/low_landmarks.marker  
+    -g target/50um/ 
+    -o result/LSFM/ 
+    -u 0
     '''
     #determine the shape of the downsampled image 
     #Note this ONLY works if the v3draw file does contain the complete name of the resampled tif stack (incl '.tif') and it is in the same directory! 
@@ -189,59 +198,61 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
         resampled_tif_stack_name = resampled_tif_stack_name[:-10]
     #laod tiff stack, then determine size 
     resampled_tif_stack = tifffile.imread(os.path.join(entry,resampled_tif_stack_name))
-    z,y,x = resampled_tif_stack.shape
+    downsampled_z,downsampled_y,downsampled_x = resampled_tif_stack.shape
 
     #determine non-downsampled (original) stack dimensions from swc file name 
     #nicer parsing function 
     if not XYZ:
         #usually the parameters are noted in (Z, X, Y)
-        Z, X, Y = split_parameters(swc_file)
+        original_z, original_x, original_y = split_parameters(swc_file)
     elif XYZ:
         #however in some cases the parameters are (X, Y, Z)
-        X, Y, Z = split_parameters(swc_file)
+        original_x, original_y, original_z = split_parameters(swc_file)
+    
+    #calculate the downsampling factor for each dimension
+    ds_factor_x = original_x/downsampled_x
+    ds_factor_y = original_y/downsampled_y
+    ds_factor_z = original_z/downsampled_z
     
     #define path names for the resulting swc files 
     swc_resampled = os.path.join(output_dir,str(mouse_name)+"_resampled.swc")
     swc_global = os.path.join(output_dir,str(mouse_name)+"_global_data.swc")
+    swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
     swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
     
     
-    cmd_swc =  str (mBrainAligner_location + "/examples/swc_registration/swc_registration.exe " + 
+    cmd_swc =  str (" /home/wirrbel/2022-08-25_mbrainaligner/examples/swc_registration/binary/linux_bin/swc_registration " + 
         " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
         " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
-        " -o " + swc_file + 
-        " -T " + glob.glob(output_dir+"/ori_local_registered_tar.marker")[0] +
-        " -S " + glob.glob(output_dir+"/ori_local_registered_sub.marker")[0] +
+        " -o " + "\"" + swc_file + "\"" +
+        " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
+        " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
         " -d " + glob.glob(output_dir+"/*FFD_grid.swc")[0] +
-        " -X " + str(X) +
-        " -Y " + str(Y) + 
-        " -Z " + str(Z) +
-        " -x " + str(x) +
-        " -y " + str(y) +
-        " -z " + str(z) +
-        " -a 324 -b 200 -c 268 -p 20" +
+        " -x " + str(ds_factor_x) +
+        " -y " + str(ds_factor_y) +
+        " -z " + str(ds_factor_z) +
+        " -a 228 -b 264 -c 160 " +
         " -r " + swc_resampled +
-        " -f " + swc_global +
+        " -g " + swc_global +
+        " -f " + swc_ffd + 
         " -s " + swc_local
         )
     
     #run the registration 
     print("registering swc for " + mouse_name)
+    print("running swc registration: " + cmd_swc)
     res = os.system(cmd_swc)
     
     #debug
-    print('swc_local: ', swc_local)
-    print('swc_file: ',swc_file)
-    print('mouse_name: ',mouse_name)
-    print('output_dir: ',output_dir)
-    print('aligned_results_folder: ',aligned_results_folder)
+    #print('swc_local: ', swc_local)
+    #print('swc_file: ',swc_file)
+    #print('mouse_name: ',mouse_name)
+    #print('output_dir: ',output_dir)
+    #print('aligned_results_folder: ',aligned_results_folder)
     
     #re-attach original size column and copy to new 
     reattach_size_and_copy(entry,swc_local,mouse_name, output_dir, aligned_results_folder)
     
-    
- 
-
 def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder,mBrainAligner_location):  
     ''' 
     # TODO: automate v3d generation, under linux use the following commandline code https://www.nitrc.org/forum/message.php?msg_id=18446 
