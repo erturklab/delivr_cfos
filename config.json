@@ -24,7 +24,15 @@
     },
     "atlas_alignment":{
         "input_location":"/media/10TB/Projects/cFos/DELIVR_TEST/postprocessing/output/",
-        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/atlas_alignment/output/"
+        "output_location":"/media/10TB/Projects/cFos/DELIVR_TEST/atlas_alignment/output/",
+        "mBrainAligner_location":"/path/to/mBrainAligner/",
+        "collection_folder":"/data/atlas_alignment/collection/"
+    },
+    "region_assignment":{
+        "input_location":"/data/atlas_alignment/collection/",
+        "CCF3_atlasfile":"/models/CCF3_P56_annotation.tif",
+        "CCF3_ontology":"/models/AllenMouseCCFv3_ontology_22Feb2021.xml",
+        "output_location":"/data/region_assignment/"
     },
     "visualization":{
         "input_csv_location":       "/media/10TB/Projects/cFos/DELIVR_TEST/atlas_alignment/output/",

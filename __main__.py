@@ -4,7 +4,10 @@ from path import Path
 from downsample.downsample_and_mask import downsample_mask
 from inference import inference 
 from count_blobs import count_blobs
+from automate_mbrainaligner import run_mbrainaligner_and_swc_reg
+from cells_to_atlas import map_cells_to_atlas
 from blob_highlighter import blob_highlighter
+
 
 def setup_subfolders(dict_entry):
     for item in dict_entry.values():
@@ -55,7 +58,20 @@ for mouse in mice:
 count_blobs(settings)
 
 # Atlas alignment
-#TODO @Moritz add code snippet here
+postprocessed_files = settings["postprocessing"]["output_location"].files("*.csv")
+for blobcoordinates in postprocessed_files:
+    run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
+                                  xyz                       = False,\
+                                  latest_output             = None,\
+                                  aligned_results_folder    = settings["atlas_alignment"]["collection_folder"],\
+                                  mBrainAligner_location    = settings["atlas_alignment"]["mBrainAligner_location"])
+
+
+# Region assignment 
+map_cells_to_atlas(OntologyFilePath = settings["region_assignment"]["CCF3_ontology"],\
+                   CCF3_filepath    = settings["region_assignment"]["CCF3_atlasfile"],\
+                   cell_file_list   = settings["region_assignment"]["input_location"].files("*local_registered_with_original_size.csv"),\
+                   target_folder    = settings["region_assignment"]["output_location"])
 
 # Visualization
 blob_highlighter(settings)

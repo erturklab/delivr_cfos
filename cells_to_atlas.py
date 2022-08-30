@@ -236,116 +236,9 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
     
     return collection_table
     
-    
-def create_pca_plot(collection_table, groups_list=None, figure_name="PCA", process='PCA'):
-    from sklearn.preprocessing import StandardScaler
-    from sklearn.decomposition import PCA, SparsePCA
-    import matplotlib.pyplot as plt
-    import myterial
-
-    #create a transposed version of the regions table 
-    try:
-        collection_transposed = collection_table.set_index('acronym').drop(['name','id','red','green','blue','graph_order','parent_id','parent_acronym','color-hex-triplet','structure-level'],axis=1).transpose()
-    except:
-        pass
-    try:
-        collection_transposed = collection_table.set_index('GroupAcronym').drop(['ColorGroup', 'GroupName', 'GroupedAcronyms','BlobCount'],axis=1).transpose()
-    except:
-        pass
-
-    #drop background column (not needed)
-    collection_transposed = collection_transposed.drop('bgr',axis=1)
-    
-    process = 'PCA' #either 'PCA' or 'sparse_PCA'
-    
-    ### 
-    if process == 'PCA': 
-    #run normal PCA         
-        #scale to normalize values 
-        scaled = StandardScaler().fit_transform(collection_transposed)
-        
-        #define PCA 
-        pca = PCA(n_components=2)
-        #perform PCA 
-        principalComponents = pca.fit_transform(scaled)
-        #save PCA results 
-        principalDf = pd.DataFrame(data = principalComponents, columns = ['principal component 1', 'principal component 2'])
-        
-        #hardcoded groups list as default 
-        if groups_list is None:
-            groups = pd.DataFrame(data=['c26','c26','c26','c26','c26','nc26','nc26','nc26','nc26','nc26','nc26','PBS','PBS','PBS','PBS','PBS','PBS'],columns=['group'])
-        else: 
-            groups = groups_list 
-        
-        # assemble to a new dataframe
-        finalDf = pd.concat([principalDf,groups[['group']]],axis=1)
-    
-    elif process == 'sparse_PCA':
-        #perform sparse PCA 
-        transformer = SparsePCA(n_components=2, random_state=0,n_jobs=-1)
-        transformed_table = transformer.fit(collection_transposed)
-        transformed_table = transformer.transform(collection_transposed)
-        transformed_table.shape
-        transformed_table_df = pd.DataFrame(data=transformed_table)
-        finalDf = pd.concat([transformed_table[[0,1]],groups_list[['group']]],axis=1)
-        finalDf = pd.concat([transformed_table_df[[0,1]],groups_list[['group']]],axis=1)
-    else: 
-        print ("wrong processing method chosen. Please specify either process='PCA' or 'sparse_PCA'")
-        
-    fig = plt.figure(figsize = (8,8))
-    ax = fig.add_subplot(1,1,1) 
-    ax.set_xlabel('Principal Component 1', fontsize = 15)
-    ax.set_ylabel('Principal Component 2', fontsize = 15)
-    ax.set_title('Whole-brain cFos, PCA', fontsize = 20)
-    targets = ['c26', 'nc26', 'PBS']
-    colors = [myterial.red, myterial.orange, myterial.grey_dark]
-    for target, color in zip(targets,colors):
-        indicesToKeep = finalDf['group'] == target
-        ax.scatter(finalDf.loc[indicesToKeep, 'principal component 1']
-                   , finalDf.loc[indicesToKeep, 'principal component 2']
-                   , c = color
-                   , s = 50)
-    ax.legend(targets)
-    fig.savefig(os.path.join(target_folder,figure_name +'.jpg'),dpi=1200)
-
-    
-    
-## === file locations === 
-
-#CCF3 ontology file (.xml)
-OntologyFilePath = "/home/wirrbel/2021-10-17_cFos_realignments/2022-03-01_region_quantification/from_Mike/AllenMouseCCFv3_ontology_22Feb2021.xml"
-
-#CCF3 atlas annotation file (.nii.gz)
-#LabelFilePath = "/home/wirrbel/2021-10-17_cFos_realignments/2022-03-01_region_quantification/from_Mike/CCF3_annotation.nii.gz"
-
-
-transformed_swc_files = ["/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3403_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3406_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3407_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3408_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3409_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3411_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3412local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3413local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/Nc26_3416local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3417local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/Nc26_3422local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3423local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3400_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3401_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3402_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3418_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3419_local_registered_with_original_size.csv",
-                            "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3420_local_registered_with_original_size.csv"
-                        ]
-
-
-#where should the finished files go?
-target_folder = '/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/2022-05-18_region_sanity_check+cc_id/'
-
-
 #=== Main function body === 
-if __name__ == '__main__': 
+#if __name__ == '__main__': 
+def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_folder)
     
     #create a heatmap collection 
     heatmap_collection = {}
@@ -355,7 +248,7 @@ if __name__ == '__main__':
     
     #load region atlas 
     #LabelImage = np.asarray(nib.load(LabelFilePath).dataobj)
-    LabelImage = tifffile.imread("/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/for_affine_registration/CCF3_P56_annotation.tif")
+    LabelImage = tifffile.imread(CCF3_filepath)
     
     #try to create target dir 
     if not os.path.exists(target_folder):
@@ -370,7 +263,6 @@ if __name__ == '__main__':
     
     #iterate through files and save as excel 
     for cellsfile in transformed_swc_files:
-        #single_mouse_cells,single_mouse_uniquetable,single_mouse_heatmap = load_and_process_swc(cellsfile)
         
         #determine mouse name from file name 
         mouse_name =  os.path.split(cellsfile)[1][:9] 
@@ -379,39 +271,32 @@ if __name__ == '__main__':
         print(mouse_name)
         
         #load xyz coords
-        #cells = pd.read_csv(cellsfile,skiprows=1,sep=' ',header=None,usecols=[2,3,4],names=["x","y","z"])
         cells = pd.read_csv(cellsfile,sep=' ',usecols=["n","x","y","z"])
         
         #optional: rename "n" to "connected_component_id" for connected component analysis
         cells = cells.rename(columns={"n" : "connected_component_id"})
-        
-        #optional: take original connected component ID as separate dataframe for later merge 
-        #cc_id = pd.read_csv(cellsfile,skiprows=1,sep=' ',header=None,usecols=[0],names=["connected_component_id"])
         
         #remove padding (empirically determined by checking a tiff extract of their CCF_u8_xpad vs standard CCF3)
         cells = mbrainaligner_atlas_to_ccf(cells,LabelImage)
         
         #check Region ID per cell and add write to csv
         cells,allvals = cells_to_atlas(cells,LabelImage,ontology_df)
-        #optional: add cc_id as a new column
-        #cells['connected_component_id'] = cc_id
         #then, save as csv 
         cells.to_csv(os.path.join(target_folder,"cells_" + mouse_name + ".csv"))
         
         #create region table, write to csv, and add to collection table 
         uniquetable = create_region_table(cells,ontology_df)
         uniquetable.to_csv(os.path.join(target_folder,"cells_overview_" + mouse_name + ".csv"))
-        
         collection_region_table = add_to_collection(collection_region_table, uniquetable, mouse_name)
         
         #create collapsed table and write to csv
         color_region_table = collapseToColorGroup(uniquetable, ontology_df)
-        #color_region_table.to_csv(os.path.join(target_folder,"region_collapsed" + mouse_name + ".csv"))
+        color_region_table.to_csv(os.path.join(target_folder,"region_collapsed" + mouse_name + ".csv"))
         collection_collapsed_table = collection_collapsed_table.merge(color_region_table['BlobCount'].rename(mouse_name),left_index=True,right_index=True,how='left')
         
         #create heatmap and write to tif
         heatmap = create_heatmap(cells,LabelImage)
-        #tifffile.imwrite(os.path.join(target_folder,"heatmap_" + mouse_name + ".tif"),heatmap.astype("float"),compress=True)
+        tifffile.imwrite(os.path.join(target_folder,"heatmap_" + mouse_name + ".tif"),heatmap.astype("float"),compress=True)
         #add to heatmap collection
         heatmap_collection[mouse_name] = heatmap
     
@@ -427,15 +312,7 @@ if __name__ == '__main__':
     collection_collapsed_table = collection_collapsed_table.fillna(0)
     #write to excel 
     collection_collapsed_table.to_excel(os.path.join(target_folder,"region_collapsed_overview.xlsx"))
-    
-    
-    #make PCA plot and save 
-    groups_list = pd.DataFrame(data=['c26','c26','c26','c26','c26','c26','nc26','nc26','nc26','nc26','nc26','nc26','PBS','PBS','PBS','PBS','PBS','PBS'],columns=['group'])
-    create_pca_plot(collection_region_table,groups_list,figure_name = "PCA_all_regions",process='sparse_PCA')
-    #make another for the collapsed list
-    create_pca_plot(collection_collapsed_table,groups_list,figure_name = "PCA_collapsed_to_color_groups",process='sparse_PCA')
-    
-    
+        
     #save heatmap collection 
     pickle.dump(heatmap_collection,open(os.path.join(target_folder,'heatmap_collection.pickledump'),'wb'))
     ####load again with the following command. note the 'rb'at the end. 

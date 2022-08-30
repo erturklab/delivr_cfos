@@ -15,13 +15,13 @@ import shutil
 import multiprocessing as mp
 import numpy as np
 
-def atlas_align(source_file, output_dir,mouse_name): 
+def atlas_align(source_file, output_dir,mouse_name,mBrainAligner_location): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
     #first (global) alignment 
-    cmd_global = str (" D:/Users/moritz.negwer/Documents/mBrainAligner/binary/win64_bin/global_registration.exe " + 
-    " -f D:/Users/moritz.negwer/Documents/mBrainAligner/examples/target/CCF_u8_xpad.v3draw" +
-    " -c D:/Users/moritz.negwer/Documents/mBrainAligner/examples/target/CCF_mask.v3draw "+
+    cmd_global = str (mBrainAligner_location + "/binary/win64_bin/global_registration.exe " + 
+    " -f " + mBrainAligner_location + "/examples/target/CCF_u8_xpad.v3draw" +
+    " -c " + mBrainAligner_location + "/examples/target/CCF_mask.v3draw "+
     " -m " + str(source_file) +
     " -p r+f+n " +
     " -o " + str(output_dir)+ 
@@ -32,11 +32,11 @@ def atlas_align(source_file, output_dir,mouse_name):
     res_global = os.system(cmd_global)
     
     #second (local) alignment 
-    cmd_local = str (" D:/Users/moritz.negwer/Documents/mBrainAligner/binary/win64_bin/local_registration.exe " + 
-    " -p D:/Users/moritz.negwer/Documents/mBrainAligner/examples/config/LSFM_config.txt " + 
+    cmd_local = str (mBrainAligner_location + "/binary/win64_bin/local_registration.exe " + 
+    " -p " + mBrainAligner_location + "/examples/config/LSFM_config.txt " + 
     " -s " + str(output_dir) + "/global.v3draw " +
-    " -l D:/Users/moritz.negwer/Documents/mBrainAligner/examples/target/target_landmarks/low_landmarks.marker " + 
-    " -g D:/Users/moritz.negwer/Documents/mBrainAligner/examples/target " + 
+    " -l " + mBrainAligner_location + "/examples/target/target_landmarks/low_landmarks.marker " + 
+    " -g " + mBrainAligner_location + "/examples/target " + 
     " -o " + str(output_dir + "/"))
     
     print ('running local alignment for mouse ' + str(mouse_name))
@@ -159,7 +159,7 @@ def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results
     #shutil.copyfile(swc_local, os.path.join(aligned_results_folder,str(mouse_name)+"_local_registered_data.swc"))
 
 
-def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False): 
+def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False,mBrainAligner_location): 
     #run mBrainaligner s swc registration 
     #create a command that looks like this: 
     '''
@@ -206,7 +206,7 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
     
     
-    cmd_swc =  str (" D:/Users/moritz.negwer/Documents/mBrainAligner/examples/swc_registration/swc_registration.exe " + 
+    cmd_swc =  str (mBrainAligner_location + "/examples/swc_registration/swc_registration.exe " + 
         " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
         " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
         " -o " + swc_file + 
@@ -242,12 +242,19 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     
  
 
-def run_mbrainaligner_and_swc_reg(brain):   
-    #decode input 
-    entry = brain[0]
-    xyz=brain[1]
-    latest_output = brain[2]
+def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder,mBrainAligner_location):  
+    ''' 
+    # TODO: automate v3d generation, under linux use the following commandline code https://www.nitrc.org/forum/message.php?msg_id=18446 
+    # (though the dll now is in plugins/data_IO/convert_file_format/convert_file_format.dll)
     
+    Inputs are organized as follows:
+    entry = path to the v3d file 
+    xyz = whether the connected_component analysis data is XYZ (True) or ZXY (False). Default False. 
+    latest_output = if there are previously computed alignment files, you can put the path here. Default None. 
+    aligned_results_folder = a collection folder where all results are collected (they will be locally saved next to the original data as well)
+    mBrainAligner_location = the location of the mBrainAligner files, i.e. D:/MoritzNegwer/Documents/mBrainAligner
+     
+    '''
     #if latest is not given, fill in something 
     if latest_output is None:
         latest_output = '2022-04-19_mBrainAligner_'
@@ -267,7 +274,7 @@ def run_mbrainaligner_and_swc_reg(brain):
         pass    
 
     #run mBrainAligner-to-atlas registration
-    #atlas_align(source_file,output_dir,mouse_name)
+    atlas_align(source_file,output_dir,mouse_name)
     
     #rewrite swc from Rami's blob swc
     swc_file = rewrite_swc(entry, output_dir,XYZ=xyz)
@@ -275,40 +282,4 @@ def run_mbrainaligner_and_swc_reg(brain):
     #align swc to atlas
     register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
     
-    return mouse_name
 
-brain_list = [
-                ["E:/2021-10-17_cFos_realignments/c26_3403_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactsremoved_results", False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/c26_3406_cfos647_4x_3x3_20o_6um_stitching_preprocessing_atrefactremoval_results",  False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/c26_3407_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results",  True,  '2022-02-22_mBrainAlign_'],#swc XYZ not ZXY
-                ["E:/2021-10-17_cFos_realignments/c26_3408_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results",  False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/c26_3409_cfos647_4x_3x3_20o_6um_stiching_preprocessing_artefactremoval_results",   False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/c26_3411_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results",  True,  '2022-03-07_mBrainAlign_'],#swc XYZ not ZXY
-                ["E:/2021-10-17_cFos_realignments/nc26_3412_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artifactremoval_results", False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/nc26_3413_cfos647_4x_3x3_20o_6um_stitching_preprocessing_results",                 False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/Nc26_3416_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results", False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/nc26_3417_cfos647_4x_3x3_20o_6um_stitiching_preprocessing_artefactremoval_results",False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/Nc26_3422_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactreemoval_results",False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/nc26_3423_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results", False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3400_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artifactremoval_results",  False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3401_cfos647_4x_3x3_20o_6um_stitching_preprocessing_results",                  False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3402_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results",  False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3418_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_stitching_results",False, '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3419_cfos647_4x_3x3_20o_6um_stitching_preprocessing_artefactremoval_results", False,  '2022-02-22_mBrainAlign_'],
-                ["E:/2021-10-17_cFos_realignments/PBS_3420_cfos647_4x_3x3_20o_6um_stiching_preprocessing_artefactremoval_results",  False,  '2022-03-07_mBrainAlign_']
-                ]
-
-
-aligned_results_folder = "E:/2021-10-17_cFos_realignments\mBrainAligner_swc_results_collection_v06"
-
-if __name__ == "__main__":
-    #first pass, run entire script sequentially
-    
-    #for brain in brain_list:
-    #    run_mbrainaligner_and_swc_reg(brain)
-    
-    
-    #after alignment has been run, run swc_reg in parallel 
-    pool = mp.Pool(processes=mp.cpu_count())
-    mouse_list = [pool.apply_async(run_mbrainaligner_and_swc_reg,args=(brain,)) for brain in brain_list]
-    
