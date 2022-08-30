@@ -4,7 +4,7 @@ from path import Path
 from downsample.downsample_and_mask import downsample_mask
 from inference import inference 
 from count_blobs import count_blobs
-from automate_mbrainaligner import run_mbrainaligner_and_swc_reg
+from automate_mBrainaligner import run_mbrainaligner_and_swc_reg
 from cells_to_atlas import map_cells_to_atlas
 from blob_highlighter import blob_highlighter
 

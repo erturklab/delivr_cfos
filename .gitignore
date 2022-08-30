@@ -130,3 +130,6 @@ dmypy.json
 
 # data directory
 data/
+
+# Test config file
+config_test.json

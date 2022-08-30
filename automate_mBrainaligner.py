@@ -253,7 +253,7 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     #re-attach original size column and copy to new 
     reattach_size_and_copy(entry,swc_local,mouse_name, output_dir, aligned_results_folder)
     
-def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder,mBrainAligner_location):  
+def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
     ''' 
     # TODO: automate v3d generation, under linux use the following commandline code https://www.nitrc.org/forum/message.php?msg_id=18446 
     # (though the dll now is in plugins/data_IO/convert_file_format/convert_file_format.dll)

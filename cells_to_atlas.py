@@ -238,7 +238,7 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
     
 #=== Main function body === 
 #if __name__ == '__main__': 
-def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_folder)
+def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_folder):
     
     #create a heatmap collection 
     heatmap_collection = {}
