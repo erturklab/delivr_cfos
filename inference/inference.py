@@ -4,6 +4,7 @@ import numpy as np
 import nibabel as nib
 from path import Path
 from tqdm import tqdm
+
 # import shutil
 import time
 
@@ -164,24 +165,15 @@ def run_inference(
     model = model.to(device)
 
     # load
-    model.load_state_dict(checkpoint)
+    model.load_state_dict(checkpoint["model_state"])
 
     # epoch stuff
-    session_name = checkpoint["session_name"]
 
     time_date = time.strftime("%Y-%m-%d_%H-%M-%S")
     print("start:", time_date)
 
-    best_epoch = checkpoint["best_epoch"]
-    best_accuracy = checkpoint["best_accuracy"]
-    print(
-        f"testing {session_name} at best_epoch: {best_epoch} with best_accuracy: {best_accuracy} on validation set"
-    )
-
     testing_session_path = Path(
-        os.path.abspath(
-            output_folder + "/" + time_date + "_" + session_name + "_" + comment
-        )
+        os.path.abspath(output_folder + "/" + time_date + "_" + comment)
     )
 
     # meta_path = testing_session_path + "/meta"
