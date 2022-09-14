@@ -13,6 +13,9 @@ Python 3.8 on Linux for Visualization
 ### ILastik requirements
 We recommend the latest beta version from the official website: https://www.ilastik.org/download.html. We used 1.4.0b26. 
 
+### TeraConverter requirements
+We recommend the latest portable version from the offical website: https://github.com/abria/TeraStitcher/wiki/Binary-packages#terastitcher-portable-no-gui--only-command-line-tools. we used 1.11.10.
+
 ### File requirements
 We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 1.62 x 1.62 x 6 µm (x/y/z/) voxel size. 
 
@@ -31,7 +34,8 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
 - `mask_detection` `ilastik_location`  : Location of the ilastik executable file 
 - `mask_detection` `ilastik_model`  : Location of the ilastik model 
-- `mask_detection` `output_location`  : Location where the masked data will be saved to 
+- `mask_detection` `teraconverter_location`  : Location of the teraconverter executable file
+- `mask_detection` `output_location`  : Location where the masked data as well as resampled stacks and detected ventricles will be saved to 
 - `mask_detection` `downsample_steps`  : Original resoultion in um as well as downsample factor
 - `blob_detection` `input_location` : Location of the masked data from previous step 
 - `blob_detection` `model_location` : Location of the trained U-Net model

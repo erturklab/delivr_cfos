@@ -23,11 +23,15 @@ def setup_folders(settings):
     if not os.path.exists("./data/"):
         os.mkdir("./data/")
     setup_subfolders(settings)
-
+    # Setup subfolders for the mask detection stage
+    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "masked_raw"))
+    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "ventricles_zplane"))
+    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled"))
+    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled_mask"))
 
 # Load settings
 settings = {}
-with open("config.json","r") as file:
+with open("config_test.json","r") as file:
     settings = json.loads(file.read())
 
 # Setup the file structure
@@ -41,7 +45,7 @@ for brain in os.listdir(settings["raw_location"]):
 batch_path = ""
 
 if settings["blob_detection"]["input_location"] == "":
-    batch = Path(settings["mask_detection"]["mask_output_location"])
+    batch = Path(settings["mask_detection"]["output_location"])
 else:
     batch = Path(settings["blob_detection"]["input_location"])
 

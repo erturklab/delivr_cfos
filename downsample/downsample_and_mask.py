@@ -239,7 +239,6 @@ def downsample_mask(settings, brain):
     mask_us = np.swapaxes(mask_us, 0, 2)
     
     print(f"Final shape {mask_us.shape}")
- 
 
     if mask_us.shape != raw_shape:
         mask_us = np.squeeze(mask_us)

@@ -3,6 +3,7 @@
     "mask_detection":{
         "ilastik_location":"/path/to/ilastik/",
         "ilastik_model":"/data/mask_detection/ilastik_model/random_forest_weights.ilp",
+        "teraconverter_location":"/path/to/teraconverter/",
         "output_location":"/data/mask_detection/output/",
         "downsample_steps":{
             "original_um_x":1.62,
