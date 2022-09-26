@@ -23,11 +23,6 @@ def setup_folders(settings):
     if not os.path.exists("./data/"):
         os.mkdir("./data/")
     setup_subfolders(settings)
-    # Setup subfolders for the mask detection stage
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "masked_raw"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "ventricles_zplane"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled_mask"))
 
 # Load settings
 settings = {}
@@ -45,11 +40,13 @@ for brain in os.listdir(settings["raw_location"]):
 batch_path = ""
 
 if settings["blob_detection"]["input_location"] == "":
-    batch = Path(settings["mask_detection"]["output_location"])
+    batch = Path(os.path.join(settings["mask_detection"]["output_location"], "masked_niftis"))
 else:
     batch = Path(settings["blob_detection"]["input_location"])
 
+print(f"Blob detection in {path}")
 mice = batch.dirs()
+print(f"Blob detection for {mice}")
 
 for mouse in mice:
     slices = mouse.files("*.nii.gz")
