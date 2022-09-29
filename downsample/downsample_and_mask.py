@@ -55,7 +55,7 @@ def downsample_zplanes(raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_
     z_chunk_downsampled = transform.downscale_local_mean(z_chunk_imgs,(z_ratio,y_ratio,x_ratio)).astype('uint16')
     
     #save to temporary directory 
-    io.imsave(os.path.join(temp_dir.name,'downsampled_um_z' + str(z_planes[0]).zfill(4) + '-' + str(z_planes[1]).zfill(4) + '.tif'),z_chunk_downsampled,compress=True)    
+    io.imsave(os.path.join(temp_dir.name,'downsampled_um_z' + str(z_planes[0]).zfill(4) + '-' + str(z_planes[1]).zfill(4) + '.tif'),z_chunk_downsampled,compress=True,check_contrast=False)    
 
 def save_vaa3d(teraconverter_path, item_path, results_path):
     cmd = str(f"{teraconverter_path}teraconverter --sfmt=\"TIFF (3D)\" \
@@ -144,6 +144,47 @@ def upsample(image : np.array,
     mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
     return mask_us
 
+def setup_folders(settings):
+    # Location of the raw tiff files
+    raw_location = os.path.join(settings["raw_location"], brain)
+
+    # General output folder
+    results_folder = settings["mask_detection"]["output_location"]
+
+    #  If there's no specified output folder, we make our own
+    if results_folder == "":
+        parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
+        results_folder = os.path.join(parent_dir,raw_folder+'mask_detection_results')
+
+    # Try to create the general output folder
+    if not os.path.exists(results_folder):
+        os.mkdir(results_folder)
+
+    #create a temporary storage directory for downsampling 
+    temp_dir = tempfile.TemporaryDirectory() 
+    
+
+    # Folder for the masked data as a tiff stack
+    downsampled_masked_name     = 'stack_masked_downsampled'
+    downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
+    if not os.path.exists(downsampled_masked_path):
+        os.mkdir(downsampled_masked_path)
+
+    # Downsampled stack
+    downsampled_name = 'stack_resampled'
+    downsampled_masked_name     = 'stack_downsampled'
+    downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
+    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled_vaa3d")
+
+    if not os.path.exists(downsampled_masked_vaa3d):
+        os.mkdir(downsampled_masked_vaa3d)
+
+    if not os.path.exists(os.path.join(results_folder, "masked_tiffs")):
+        os.mkdir(os.path.join(results_folder, "masked_tiffs"))
+
+    if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
+        os.mkdir(os.path.join(results_folder, "masked_niftis"))
+
     
 # if __name__ == '__main__':
 def downsample_mask(settings, brain):
@@ -173,6 +214,7 @@ def downsample_mask(settings, brain):
     #split the image list into this many chunks along z
     z_series = np.arange(0,len(raw_image_list),z_ratio)
     
+    #XXX XXX XXX XXX XXX XXX XXX XXX
     #create a new results folder
     results_folder = settings["mask_detection"]["output_location"]
     if results_folder == "":
@@ -185,6 +227,7 @@ def downsample_mask(settings, brain):
         
     #create a temporary storage directory for downsampling 
     temp_dir = tempfile.TemporaryDirectory() 
+    #XXX XXX XXX XXX XXX XXX XXX XXX
 
     #open multiprocessing pool 
     pool = mp.Pool(processes = 6)
@@ -219,7 +262,17 @@ def downsample_mask(settings, brain):
     
     #save as new stack in results_folder
     downsampled_name = 'stack_resampled'
-    io.imsave(os.path.join(results_folder,downsampled_name + '.tif'),downsampled_stack,compress=True)
+    io.imsave(os.path.join(results_folder,downsampled_name + '.tif'),downsampled_stack,compress=True,check_contrast=False)
+
+    #TODO save downsampled stack
+    downsampled_name = 'stack_resampled'
+    downsampled_masked_name     = 'stack_downsampled'
+    downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
+    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled_vaa3d")
+    if not os.path.exists(downsampled_masked_vaa3d):
+        os.mkdir(downsampled_masked_vaa3d)
+    teraconverter_path = settings["mask_detection"]["teraconverter_location"]
+    save_vaa3d(teraconverter_path, os.path.join(results_folder,downsampled_name + '.tif'), downsampled_masked_vaa3d)
     
     #cleanup 
     temp_dir.cleanup()
@@ -231,6 +284,9 @@ def downsample_mask(settings, brain):
     print(ventricle_masking_ilastik_project)
     start = datetime.datetime.now()
     downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
+    print(f"Downsampled mask: {np.min(downsampled_mask)} {np.max(downsampled_mask)} {downsampled_mask.dtype}")
+    downsampled_mask[downsampled_mask < 0.5] = 0
+    downsampled_mask[downsampled_mask >= 0.5] = 1
     delta = datetime.datetime.now() -start
     print(f"Ilastik: {delta}")
     
@@ -245,15 +301,16 @@ def downsample_mask(settings, brain):
     print(f"downsampled mask {downsampled_mask.shape}")
     print(f"downsampled masked stack {downsampled_masked_stack.shape}")
     start = datetime.datetime.now()
-    teraconverter_path = settings["mask_detection"]["teraconverter_location"]
     if not os.path.exists(downsampled_masked_path):
         os.mkdir(downsampled_masked_path)
+    if not os.path.exists(downsampled_masked_vaa3d):
+        os.mkdir(downsampled_masked_vaa3d)
     print(downsampled_masked_path)
     # for downsampled_masked_slice in range(downsampled_masked_stack.shape[0]):
         # io.imsave(downsampled_masked_path + f"/{downsampled_masked_slice}.tif", downsampled_masked_stack[downsampled_masked_slice,:,:], compress=True)
-    io.imsave(downsampled_masked_path + "/downsampled_masked_stack.tif", downsampled_masked_stack, compress=True)
+    io.imsave(downsampled_masked_path + "/downsampled_masked_stack.tif", downsampled_masked_stack, compress=True,check_contrast=False)
 
-    save_vaa3d(teraconverter_path, downsampled_masked_path + "/downsampled_masked_stack.v3draw", downsampled_masked_vaa3d)
+    save_vaa3d(teraconverter_path, downsampled_masked_path + "/downsampled_masked_stack.tif", downsampled_masked_vaa3d)
     delta = datetime.datetime.now() -start
     print(f"Saving downsampled mask as tiff and vaa3d: {delta}")
 
@@ -276,6 +333,8 @@ def downsample_mask(settings, brain):
 
     #TODO Mask * raw, save as tiff
     #TODO Convert tiff stack as .v3draw
+    #TODO Copy .v3draw from subfolders
+    #TODO Setup folders
     
     mask_us = np.swapaxes(mask_us, 0, 2)
     
@@ -300,16 +359,22 @@ def downsample_mask(settings, brain):
         # Add to final Nifti output
         masked_nii.append(img)
         # Save masked raw data
-        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img)
+        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, check_contrast=False)
     delta = datetime.datetime.now() - start
     print(f"Masking: {delta}")
 
 
+    print("Saving final data as Nifti")
+    start = datetime.datetime.now()
     # Save all tiffs neatly in a folder
     if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
         os.mkdir(os.path.join(results_folder, "masked_niftis"))
 
     masked_nii = np.array(masked_nii)
 
-    write_nifti(os.path.join(results_folder, "masked_niftis") + "masked_nifti.nii.gz", masked_nii)
+    masked_nii = np.swapaxes(masked_nii, 0, -1)
+    masked_nii = np.swapaxes(masked_nii, 0, 1)
+    write_nifti(os.path.join(results_folder, "masked_niftis") + "/masked_nifti.nii.gz", masked_nii)
+    delta = datetime.datetime.now() - start
+    print(f"Nifti: {delta}")
     
