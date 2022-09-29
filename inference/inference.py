@@ -101,7 +101,7 @@ def run_inference(
             # << PREPROCESSING transforms >>
             LoadImageD(keys="images"),
             AddChanneld(keys="images"),
-            Lambdad(["images", "label"], np.nan_to_num),
+            Lambdad(["images"], np.nan_to_num),
             ToTensord(keys="images"),
         ]
     )
