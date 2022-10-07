@@ -33,10 +33,14 @@ with open("config_test.json","r") as file:
 setup_folders(settings)
 
 # Downsample
-for brain in os.listdir(settings["raw_location"]):
-    downsample_mask(settings, brain)
+# Downsample, filter out ventricles, upsample and mask the raw images
+# Multiple intermediate steps are saved for further steps down the pipeline
+# for brain in os.listdir(settings["raw_location"]):
+#     downsample_mask(settings, brain)
 
 # Infer
+# Run inference of the trained deep learning network on the 
+# masked brain images
 batch_path = ""
 
 if settings["blob_detection"]["input_location"] == "":
@@ -44,7 +48,7 @@ if settings["blob_detection"]["input_location"] == "":
 else:
     batch = Path(settings["blob_detection"]["input_location"])
 
-print(f"Blob detection in {path}")
+print(f"Blob detection in {batch}")
 mice = batch.dirs()
 print(f"Blob detection for {mice}")
 
@@ -53,13 +57,16 @@ for mouse in mice:
     inference.run_inference(niftis          = slices,\
                             output_folder   = settings["blob_detection"]["output_location"],\
                             model_weights   = settings["blob_detection"]["model_location"], \
+                            tta             = False,
                             comment         = mouse.name)
 
 # Post-processing
+# Counts individual blobs, filters by size and saves each blob, 
+# its size and its location (x/y/z) in a csv file for each brain
 count_blobs(settings)
 
 # Atlas alignment
-postprocessed_files = settings["postprocessing"]["output_location"].files("*.csv")
+postprocessed_files = Path(settings["postprocessing"]["output_location"]).files("*.csv")
 for blobcoordinates in postprocessed_files:
     run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
                                   xyz                       = False,\
