@@ -53,12 +53,12 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     #run command
     res = os.system(cmd)
     
-    #reassemble images
-    mask_dir = os.path.join(results_folder,downsampled_name + ".tif")
-    mask = io.imread(mask_dir) 
+    #assemble the Ilastik output to a stack 
+    ilastik_output_list = sorted(glob.glob(os.path.join(results_folder,'ventricles_zplanes','*.tif')))
+    mask = io.concatenate_images(io.imread_collection(ilastik_output_list))
     
     #cast to 8-bit (should be superfluous)
-    mask = mask.astype('uint8')
+    #mask = mask.astype('uint8')
     
     #Ilastik exports probabilities mapped between 0 and 255.
     #thresholding at 128: everything smaller = 0, everything larger = 1
@@ -223,16 +223,19 @@ def downsample_mask(settings, brain):
     #                     downsampled_um_y,
     #                     downsampled_um_z)
 
+    #get the shape of the raw image stack
     raw_shape = get_real_size(raw_location)
     print(f"Before upsampling: {downsampled_mask.shape}")
     print(f"Raw shape {raw_shape}")
-
+    
+    #calculate ratios for upscaling (this replaces the previously used ratios for downsampling)
     z_ratio = raw_shape[2] / downsampled_mask.shape[0] 
     y_ratio = raw_shape[0] / downsampled_mask.shape[1] 
     x_ratio = raw_shape[1] / downsampled_mask.shape[2] 
 
+    #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
     start = datetime.datetime.now()
-    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8')
+    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8',order=2)
     delta = datetime.datetime.now() - start
     print(f"Zoom: {delta}")
     
@@ -245,13 +248,27 @@ def downsample_mask(settings, brain):
         mask_us = np.swapaxes(mask_us, 0, 1)
     print(f"Saving final masked data {mask_us.shape}\n")
     start = datetime.datetime.now()
+    
+    # Apply mask to every z-plane 
     for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
         img = cv2.imread(raw_location + "/" + item, -1)
         print(f"{item} {i} / {mask_us.shape[2]} MASK {mask_us.shape} RAW {img.shape}")
+        #apply mask
         img *= mask_us[:,:,i]
-        io.imsave(os.path.join(results_folder, item), img)
+        #save masked z-plane
+        io.imsave(os.path.join(results_folder, item), img)        
     delta = datetime.datetime.now() - start
     print(f"Masking: {delta}")
+    
+    #optional: also save upscaled mask 
+    mask_output_folder = os.path.join(results_folder,'upscaled_mask')
+    #try to create
+    if not os.path.exists(mask_output_folder):
+        os.mkdir(mask_output_folder)
+    #save every z-plane of the upscaled mask as tif
+    for z in range(mask_us.shape[0]):
+        z_plane = mask_us[z,:,:]    
+        io.imsave(os.path.join(mask_output_folder,'mask_upscaled_z_'+str(z).zfill(4)+'.tif'),z_plane,compress=True)
 
 
     
