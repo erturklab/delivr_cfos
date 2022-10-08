@@ -62,8 +62,8 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     
     #Ilastik exports probabilities mapped between 0 and 255.
     #thresholding at 128: everything smaller = 0, everything larger = 1
-    mask[mask < 128] = 0
-    mask[mask >= 128] = 1
+    #mask[mask < 128] = 0
+    #mask[mask >= 128] = 1
     
     #save in main folder 
     io.imsave(os.path.join(results_folder,downsampled_name + '_mask.tif'),mask,compress=True)
@@ -235,7 +235,12 @@ def downsample_mask(settings, brain):
 
     #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
     start = datetime.datetime.now()
-    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8',order=2)
+    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8',order=2)   
+    
+    #threshold mask
+    mask_us[mask_us < 128] = 0
+    mask_us[mask_us >= 128] = 1
+    
     delta = datetime.datetime.now() - start
     print(f"Zoom: {delta}")
     
