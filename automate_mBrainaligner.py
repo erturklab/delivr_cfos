@@ -58,13 +58,16 @@ def atlas_align(source_file, output_dir,mouse_name):
     res_local = os.system(cmd_local)
 
 
-def rewrite_swc(entry, output_dir,XYZ=False):
+def rewrite_swc(csv_path, output_dir,XYZ=False):
     #define source file 
     #Note this needs to be the ONLY file ending in binary.scv! 
-    csv_path = glob.glob(entry+"/*binary.csv")[0]
+    #TODO remove?
+    # csv_path = glob.glob(entry+"/*binary.csv")[0]
 
     #read file 
     file = pd.read_csv(csv_path)
+    print(file)
+    exit()
 
     #strip duplicate "Blob" column 
     file = file.drop(["Blob"],axis=1)
@@ -253,31 +256,44 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     #re-attach original size column and copy to new 
     reattach_size_and_copy(entry,swc_local,mouse_name, output_dir, aligned_results_folder)
     
-def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
+def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
     ''' 
     # TODO: automate v3d generation, under linux use the following commandline code https://www.nitrc.org/forum/message.php?msg_id=18446 
     # (though the dll now is in plugins/data_IO/convert_file_format/convert_file_format.dll)
     
     Inputs are organized as follows:
     entry = path to the v3d file 
+    settings = configuration file
     xyz = whether the connected_component analysis data is XYZ (True) or ZXY (False). Default False. 
     latest_output = if there are previously computed alignment files, you can put the path here. Default None. 
     aligned_results_folder = a collection folder where all results are collected (they will be locally saved next to the original data as well)
     mBrainAligner_location = the location of the mBrainAligner files, i.e. D:/MoritzNegwer/Documents/mBrainAligner
      
     '''
+    entry_folder = entry.split("/")[-1].replace(".csv","")
+    brain = ("_").join(entry_folder.split("_")[1:])
+    orientation = entry_folder.split("_")[0]
+    #TODO Find the v3draw
+    v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_downsampled.v3draw")
+    csv_path    = entry#os.path.join(settings["postprocessing"]["output_location"], brain) 
+
     #if latest is not given, fill in something 
     if latest_output is None:
         latest_output = '2022-04-19_mBrainAligner_'
     
     #define source file. This WILL fail if there is more than one v3draw file in the folder! 
-    source_file = glob.glob(entry+"/*.v3draw")[0]
-    print (source_file)
+    #TODO Define real v3draw path
+    source_file = v3draw_path # glob.glob(entry+"/*.v3draw")[0]
+    print(f"Brain {brain}")
+    print(f"Source file {source_file}")
+    print(f"CSV path {csv_path}")
     
     #extract mouse name from entry directory 
-    mouse_name = os.path.split(entry)[1][:9]
+    #TODO Define mouse name directly in input
+    mouse_name = brain#os.path.split(entry)[1][:9]
     
     #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
+    #TODO Define output dir directly in input
     output_dir = os.path.join(entry,latest_output + mouse_name)
     try: 
         os.mkdir(output_dir)
@@ -288,7 +304,8 @@ def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_r
     atlas_align(source_file,output_dir,mouse_name)
     
     #rewrite swc from Rami's blob swc
-    swc_file = rewrite_swc(entry, output_dir,XYZ=xyz)
+    #TODO Defince csv file directly in input
+    swc_file = rewrite_swc(csv_path, output_dir,XYZ=xyz)
     
     #align swc to atlas
     register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)

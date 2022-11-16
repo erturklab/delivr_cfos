@@ -29,36 +29,39 @@ settings = {}
 with open("config_test.json","r") as file:
     settings = json.loads(file.read())
 
-# Setup the file structure
-setup_folders(settings)
+# # Setup the file structure
+# setup_folders(settings)
 
-# Downsample
-# Downsample, filter out ventricles, upsample and mask the raw images
-# Multiple intermediate steps are saved for further steps down the pipeline
-# for brain in os.listdir(settings["raw_location"]):
-#     downsample_mask(settings, brain)
+# # # Downsample
+# # # Downsample, filter out ventricles, upsample and mask the raw images
+# # # Multiple intermediate steps are saved for further steps down the pipeline
+# # for brain in os.listdir(settings["raw_location"]):
+# #     downsample_mask(settings, brain)
 
-# Infer
-# Run inference of the trained deep learning network on the 
-# masked brain images
-batch_path = ""
+# # Infer
+# # Run inference of the trained deep learning network on the 
+# # masked brain images
+# batch_path = ""
 
-if settings["blob_detection"]["input_location"] == "":
-    batch = Path(os.path.join(settings["mask_detection"]["output_location"], "masked_niftis"))
-else:
-    batch = Path(settings["blob_detection"]["input_location"])
+# if settings["blob_detection"]["input_location"] == "":
+#     batch = Path(settings["mask_detection"]["output_location"])
+# else:
+#     batch = Path(settings["blob_detection"]["input_location"])
 
-print(f"Blob detection in {batch}")
-mice = batch.dirs()
-print(f"Blob detection for {mice}")
+# print(f"Blob detection in {batch}")
+# mice = batch.dirs()
+# print(f"Blob detection for {mice}")
 
-for mouse in mice:
-    slices = mouse.files("*.nii.gz")
-    inference.run_inference(niftis          = slices,\
-                            output_folder   = settings["blob_detection"]["output_location"],\
-                            model_weights   = settings["blob_detection"]["model_location"], \
-                            tta             = False,
-                            comment         = mouse.name)
+# for mouse in mice:
+#     print(f"Detecting in {mouse}")
+#     mouse_name = mouse.name
+#     mouse = os.path.join(mouse, "masked_niftis")
+#     slices = mouse.files("*.nii.gz")
+#     inference.run_inference(niftis          = slices,\
+#                             output_folder   = settings["blob_detection"]["output_location"],\
+#                             model_weights   = settings["blob_detection"]["model_location"], \
+#                             tta             = False,
+#                             comment         = mouse_name)
 
 # Post-processing
 # Counts individual blobs, filters by size and saves each blob, 
@@ -69,6 +72,7 @@ count_blobs(settings)
 postprocessed_files = Path(settings["postprocessing"]["output_location"]).files("*.csv")
 for blobcoordinates in postprocessed_files:
     run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
+                                  settings                  = settings,\
                                   xyz                       = False,\
                                   latest_output             = None,\
                                   aligned_results_folder    = settings["atlas_alignment"]["collection_folder"],\

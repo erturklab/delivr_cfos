@@ -175,8 +175,13 @@ def run_inference(
     time_date = time.strftime("%Y-%m-%d_%H-%M-%S")
     print("start:", time_date)
 
+    # TODO lets see how we can refactor this
+    # testing_session_path = Path(
+    #     os.path.abspath(output_folder + "/" + time_date + "_" + comment)
+    # )
+
     testing_session_path = Path(
-        os.path.abspath(output_folder + "/" + time_date + "_" + comment)
+        os.path.abspath(output_folder + "/" + comment)
     )
 
     # meta_path = testing_session_path + "/meta"

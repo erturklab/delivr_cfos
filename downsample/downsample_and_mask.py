@@ -8,6 +8,7 @@ Created on Mon Apr  4 23:20:47 2022
 
 import os
 import glob
+import shutil
 import numpy as np
 import nibabel as nib
 import multiprocessing as mp 
@@ -63,6 +64,19 @@ def save_vaa3d(teraconverter_path, item_path, results_path):
             -s=\"{item_path}\" \
             -d=\"{results_path}\"")
     Popen(cmd, shell=True).wait()
+    print(results_path)
+    vaa3d_output = os.path.join(results_path, [x for x in os.listdir(results_path) if "RES" in x][0])  # RES (XxYxZ) folder
+    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
+    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
+    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
+    # vaa3d_output = os.path.join(vaa3d_output, os.listdir(os.listdir(os.listdir(vaa3d_output)[0])[0])[0])    #00000_0000 -> 000000 -> .raw
+    old_path = results_path
+    if results_path[-1] == "/":
+        results_path = results_path[:-1]
+    results_path += ".v3draw"
+    print(f"Moving from {vaa3d_output}\n{results_path}")
+    shutil.move(vaa3d_output, results_path)
+    shutil.rmtree(old_path)
 
 def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project):
     #runs Ilastik as command line tool 
@@ -92,6 +106,7 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     
     #save in main folder 
     io.imsave(os.path.join(results_folder,downsampled_name + '_mask.tif'),mask,compress=True)
+    print(f"{np.min(mask)} {np.mean(mask)} {np.max(mask)}")
     
     return mask 
 
@@ -143,48 +158,6 @@ def upsample(image : np.array,
     z_ratio = downsample_um_z/original_um_z
     mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
     return mask_us
-
-def setup_folders(settings):
-    # Location of the raw tiff files
-    raw_location = os.path.join(settings["raw_location"], brain)
-
-    # General output folder
-    results_folder = settings["mask_detection"]["output_location"]
-
-    #  If there's no specified output folder, we make our own
-    if results_folder == "":
-        parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
-        results_folder = os.path.join(parent_dir,raw_folder+'mask_detection_results')
-
-    # Try to create the general output folder
-    if not os.path.exists(results_folder):
-        os.mkdir(results_folder)
-
-    #create a temporary storage directory for downsampling 
-    temp_dir = tempfile.TemporaryDirectory() 
-    
-
-    # Folder for the masked data as a tiff stack
-    downsampled_masked_name     = 'stack_masked_downsampled'
-    downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
-    if not os.path.exists(downsampled_masked_path):
-        os.mkdir(downsampled_masked_path)
-
-    # Downsampled stack
-    downsampled_name = 'stack_resampled'
-    downsampled_masked_name     = 'stack_downsampled'
-    downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
-    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled_vaa3d")
-
-    if not os.path.exists(downsampled_masked_vaa3d):
-        os.mkdir(downsampled_masked_vaa3d)
-
-    if not os.path.exists(os.path.join(results_folder, "masked_tiffs")):
-        os.mkdir(os.path.join(results_folder, "masked_tiffs"))
-
-    if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
-        os.mkdir(os.path.join(results_folder, "masked_niftis"))
-
     
 # if __name__ == '__main__':
 def downsample_mask(settings, brain):
@@ -216,7 +189,7 @@ def downsample_mask(settings, brain):
     
     #XXX XXX XXX XXX XXX XXX XXX XXX
     #create a new results folder
-    results_folder = settings["mask_detection"]["output_location"]
+    results_folder = os.path.join(settings["mask_detection"]["output_location"], brain)
     if results_folder == "":
         parent_dir,raw_folder = os.path.split(os.path.abspath(raw_location))
         results_folder = os.path.join(parent_dir,raw_folder+'_results')
@@ -268,7 +241,7 @@ def downsample_mask(settings, brain):
     downsampled_name = 'stack_resampled'
     downsampled_masked_name     = 'stack_downsampled'
     downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
-    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled_vaa3d")
+    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled")
     if not os.path.exists(downsampled_masked_vaa3d):
         os.mkdir(downsampled_masked_vaa3d)
     teraconverter_path = settings["mask_detection"]["teraconverter_location"]
@@ -285,18 +258,21 @@ def downsample_mask(settings, brain):
     start = datetime.datetime.now()
     downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
     print(f"Downsampled mask: {np.min(downsampled_mask)} {np.max(downsampled_mask)} {downsampled_mask.dtype}")
-    downsampled_mask[downsampled_mask < 0.5] = 0
-    downsampled_mask[downsampled_mask >= 0.5] = 1
+    # Important: Saved masks somehow have propabilities 0 - 255 instead of 0 - 1
+    downsampled_mask[downsampled_mask < 125] = 0
+    downsampled_mask[downsampled_mask >= 125] = 1
     delta = datetime.datetime.now() -start
     print(f"Ilastik: {delta}")
     
 
 
     #make downsampled masked stack
+    print(f"Downsampled stack {np.min(downsampled_stack)} {np.max(downsampled_stack)} {downsampled_stack.dtype}")
     downsampled_masked_stack    = downsampled_mask * downsampled_stack
+    print(f"Masked downsampled stack {np.min(downsampled_masked_stack)} {np.max(downsampled_masked_stack)} {downsampled_masked_stack.dtype}")
     downsampled_masked_name     = 'stack_masked_downsampled'
     downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
-    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_masked_downsampled_vaa3d")
+    downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_masked_downsampled")
     print(f"downsampled stack {downsampled_stack.shape}")
     print(f"downsampled mask {downsampled_mask.shape}")
     print(f"downsampled masked stack {downsampled_masked_stack.shape}")
@@ -332,9 +308,9 @@ def downsample_mask(settings, brain):
     start = datetime.datetime.now()
     mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output='uint8',order=2)   
     
-    #threshold mask
-    mask_us[mask_us < 128] = 0
-    mask_us[mask_us >= 128] = 1
+    ##threshold mask
+    #mask_us[mask_us < 128] = 0
+    #mask_us[mask_us >= 128] = 1
     
     delta = datetime.datetime.now() - start
     print(f"Zoom: {delta}")
