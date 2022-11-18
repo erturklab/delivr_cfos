@@ -24,15 +24,17 @@ import shutil
 import multiprocessing as mp
 import numpy as np
 
-def atlas_align(source_file, output_dir,mouse_name): 
+def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
+    print(f"Source File:\n{source_file}")
+    print(f"Output Dir:\n{output_dir}")
     #first (global) alignment 
-    cmd_global = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/global_registration " + 
-    " -f /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " +
-    " -m " + str(source_file) +
+    cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
+    f" -f {mBrainAligner_location}examples/target/50um/ " +
+    f" -m \"{source_file}\"" +
     " -p r+f+n " +
-    " -o " + str(output_dir)+ 
+    f" -o \"{output_dir}\"/"+ 
     " -d 70 " +
     " -l 30+30+30 " +
     " -u 0" )
@@ -44,12 +46,12 @@ def atlas_align(source_file, output_dir,mouse_name):
     res_global = os.system(cmd_global)
     
     #second (local) alignment 
-    cmd_local = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/local_registration " + 
-    " -p /home/wirrbel/2022-08-25_mbrainaligner/examples/config/LSFM_config_DeliVR.txt " + 
-    " -s " + str(output_dir) + "/global.v3draw " +
-    " -l /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/target_landmarks/low_landmarks.marker " + 
-    " -g /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " + 
-    " -o " + str(output_dir + "/")+
+    cmd_local = str(f" {mBrainAligner_location}binary/linux_bin/local_registration " + 
+    f" -p {mBrainAligner_location}examples/config/LSFM_config_DeliVR.txt " + 
+    f" -s {output_dir}/global.v3draw " +
+    f" -l {mBrainAligner_location}examples/target/50um/target_landmarks/low_landmarks.marker " + 
+    f" -g {mBrainAligner_location}examples/target/50um/ " + 
+    f" -o {output_dir}/"+
     " -u 0")
     
     #print ('running local alignment for mouse ' + str(mouse_name))
@@ -66,8 +68,6 @@ def rewrite_swc(csv_path, output_dir,XYZ=False):
 
     #read file 
     file = pd.read_csv(csv_path)
-    print(file)
-    exit()
 
     #strip duplicate "Blob" column 
     file = file.drop(["Blob"],axis=1)
@@ -86,6 +86,7 @@ def rewrite_swc(csv_path, output_dir,XYZ=False):
     #split Coords into three columns 
     split = file["Coords"].str.split(" ",n=2,expand=True)
 
+
     #reassign to file 
     if not XYZ:
         file["z"] = split[0]
@@ -95,6 +96,12 @@ def rewrite_swc(csv_path, output_dir,XYZ=False):
         file["x"] = split[0]
         file["y"] = split[1]
         file["z"] = split[2]
+
+    file["z"] = file["z"].str.replace(re.escape(","), "")
+    file["x"] = file["x"].str.replace(re.escape(","), "")
+    file["y"] = file["y"].str.replace(re.escape(","), "")
+    # print(split)
+    # exit()
         
     file.drop("Coords",axis=1,inplace=True)
     file.drop("Unnamed: 0",axis=1,inplace=True)
@@ -281,9 +288,8 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     if latest_output is None:
         latest_output = '2022-04-19_mBrainAligner_'
     
-    #define source file. This WILL fail if there is more than one v3draw file in the folder! 
-    #TODO Define real v3draw path
-    source_file = v3draw_path # glob.glob(entry+"/*.v3draw")[0]
+    #define source file. 
+    source_file = v3draw_path 
     print(f"Brain {brain}")
     print(f"Source file {source_file}")
     print(f"CSV path {csv_path}")
@@ -294,17 +300,26 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     
     #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
     #TODO Define output dir directly in input
-    output_dir = os.path.join(entry,latest_output + mouse_name)
-    try: 
+    output_dir = settings["atlas_alignment"]["output_location"]
+    if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-    except:
-        pass    
+    output_dir = os.path.join(output_dir, mouse_name)
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
+    # output_dir = os.path.join(aligned_results_folder,mouse_name)
+    # try: 
+    #     os.mkdir(output_dir)
+    # except:
+    #     pass    
+    print(f"latest_output {latest_output}")
+    print(f"Output dir {output_dir}")
+
+    mBrainAligner_location = settings["atlas_alignment"]["mBrainAligner_location"]
     #run mBrainAligner-to-atlas registration
-    atlas_align(source_file,output_dir,mouse_name)
+    atlas_align(mBrainAligner_location, source_file,output_dir,mouse_name)
     
     #rewrite swc from Rami's blob swc
-    #TODO Defince csv file directly in input
     swc_file = rewrite_swc(csv_path, output_dir,XYZ=xyz)
     
     #align swc to atlas
