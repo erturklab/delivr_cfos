@@ -159,12 +159,11 @@ def split_parameters (file_path):
     
     return parameters_list
 
-def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results_folder):
+def reattach_size_and_copy(csv_path,swc_local,mouse_name,output_dir,aligned_results_folder):
     #### re-attach size column from the original csv 
     #read tranformed swc
     registered_cells = pd.read_csv(swc_local, sep = ' ',skiprows=3,names=['n','type', 'x','y','z','radius','parent'])
     #read the original csv 
-    csv_path = glob.glob(entry+"/*binary.csv")[0]
     original_csv = pd.read_csv(csv_path)
     #merge to new df
     merged = registered_cells.copy()
@@ -184,7 +183,8 @@ def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results
     #shutil.copyfile(swc_local, os.path.join(aligned_results_folder,str(mouse_name)+"_local_registered_data.swc"))
 
 
-def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False): 
+def register_swc_to_atlas (csv_path,mBrainAligner_location, swc_file, source_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=False): 
+    #TODO see where we propagate entry to...
     #run mBrainaligner s swc registration 
     #create a command that looks like this: 
     '''
@@ -197,17 +197,9 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     -u 0
     '''
     #determine the shape of the downsampled image 
-    #Note this ONLY works if the v3draw file does contain the complete name of the resampled tif stack (incl '.tif') and it is in the same directory! 
     
-    #determine source v3draw file (again)
-    source_file = glob.glob(entry+"/*.v3draw")[0]
-    #then, split off .v3draw to get resampled tiff stack name 
-    resampled_tif_stack_name = os.path.splitext(os.path.split(source_file)[1])[0]
-    #remove a '_processed' from the name, if present 
-    if resampled_tif_stack_name.endswith('_processed'):
-        resampled_tif_stack_name = resampled_tif_stack_name[:-10]
     #laod tiff stack, then determine size 
-    resampled_tif_stack = tifffile.imread(os.path.join(entry,resampled_tif_stack_name))
+    resampled_tif_stack = tifffile.imread(tiff_path)
     downsampled_z,downsampled_y,downsampled_x = resampled_tif_stack.shape
 
     #determine non-downsampled (original) stack dimensions from swc file name 
@@ -231,7 +223,7 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
     
     
-    cmd_swc =  str (" /home/wirrbel/2022-08-25_mbrainaligner/examples/swc_registration/binary/linux_bin/swc_registration " + 
+    cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
         " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
         " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
         " -o " + "\"" + swc_file + "\"" +
@@ -261,7 +253,7 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     #print('aligned_results_folder: ',aligned_results_folder)
     
     #re-attach original size column and copy to new 
-    reattach_size_and_copy(entry,swc_local,mouse_name, output_dir, aligned_results_folder)
+    reattach_size_and_copy(csv_path,swc_local,mouse_name, output_dir, aligned_results_folder)
     
 def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
     ''' 
@@ -282,6 +274,7 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     orientation = entry_folder.split("_")[0]
     #TODO Find the v3draw
     v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_downsampled.v3draw")
+    tiff_path   = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_resampled.tif")
     csv_path    = entry#os.path.join(settings["postprocessing"]["output_location"], brain) 
 
     #if latest is not given, fill in something 
@@ -323,6 +316,6 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     swc_file = rewrite_swc(csv_path, output_dir,XYZ=xyz)
     
     #align swc to atlas
-    register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
+    register_swc_to_atlas(BrainAligner_location, csv_path, swc_file, source_file, tiff_path, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
     
 
