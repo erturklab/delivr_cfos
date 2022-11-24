@@ -45,6 +45,7 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name):
     #run the command via command line 
     res_global = os.system(cmd_global)
     
+    #TODO Include config
     #second (local) alignment 
     cmd_local = str(f" {mBrainAligner_location}binary/linux_bin/local_registration " + 
     f" -p {mBrainAligner_location}examples/config/LSFM_config_DeliVR.txt " + 
@@ -184,7 +185,6 @@ def reattach_size_and_copy(csv_path,swc_local,mouse_name,output_dir,aligned_resu
 
 
 def register_swc_to_atlas (csv_path,mBrainAligner_location, swc_file, source_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=False): 
-    #TODO see where we propagate entry to...
     #run mBrainaligner s swc registration 
     #create a command that looks like this: 
     '''
@@ -316,6 +316,6 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     swc_file = rewrite_swc(csv_path, output_dir,XYZ=xyz)
     
     #align swc to atlas
-    register_swc_to_atlas(BrainAligner_location, csv_path, swc_file, source_file, tiff_path, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
+    register_swc_to_atlas(mBrainAligner_location, csv_path, swc_file, source_file, tiff_path, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
     
 

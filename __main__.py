@@ -66,7 +66,7 @@ with open("config_test.json","r") as file:
 # Post-processing
 # Counts individual blobs, filters by size and saves each blob, 
 # its size and its location (x/y/z) in a csv file for each brain
-count_blobs(settings)
+# count_blobs(settings)
 
 # Atlas alignment
 postprocessed_files = Path(settings["postprocessing"]["output_location"]).files("*.csv")
