@@ -236,7 +236,7 @@ def downsample_mask(settings, brain):
     #save as new stack in results_folder
     downsampled_name = 'stack_resampled'
     io.imsave(os.path.join(results_folder,downsampled_name + '.tif'),downsampled_stack,compress=True,check_contrast=False)
-    downsampled_stack_8bit = downsampled_stack.astype(np.uint8)
+    downsampled_stack_8bit = downsampled_stack.astype(np.int8)
     io.imsave(os.path.join(results_folder,downsampled_name + '_8bit.tif'),downsampled_stack,compress=True,check_contrast=False)
 
     #TODO save downsampled stack
@@ -287,7 +287,7 @@ def downsample_mask(settings, brain):
     # for downsampled_masked_slice in range(downsampled_masked_stack.shape[0]):
         # io.imsave(downsampled_masked_path + f"/{downsampled_masked_slice}.tif", downsampled_masked_stack[downsampled_masked_slice,:,:], compress=True)
     io.imsave(downsampled_masked_path + "/downsampled_masked_stack.tif", downsampled_masked_stack, compress=True,check_contrast=False)
-    downsampled_masked_stack_8bit = downsampled_masked_stack.astype(np.uint8)
+    downsampled_masked_stack_8bit = downsampled_masked_stack.astype(np.int8)
     io.imsave(downsampled_masked_path + "/downsampled_masked_stack_8bit.tif", downsampled_masked_stack, compress=True,check_contrast=False)
 
     save_vaa3d(teraconverter_path, downsampled_masked_path + "/downsampled_masked_stack_8bit.tif", downsampled_masked_vaa3d)

@@ -24,6 +24,17 @@ import shutil
 import multiprocessing as mp
 import numpy as np
 
+#TODO use masked v3draw
+"""
+mBrainAligner
+    Download libs
+    Copy to /usr/lib/
+    chown to local user
+    chmod 777
+    extract 50um atlas
+    include LSFM_config_DeliVR.txt into /mbrainaligner/examples/config/
+"""
+
 def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
@@ -34,7 +45,7 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name):
     f" -f {mBrainAligner_location}examples/target/50um/ " +
     f" -m \"{source_file}\"" +
     " -p r+f+n " +
-    f" -o \"{output_dir}\"/"+ 
+    f" -o \"{output_dir}\""+ 
     " -d 70 " +
     " -l 30+30+30 " +
     " -u 0" )
@@ -52,7 +63,7 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name):
     f" -s {output_dir}/global.v3draw " +
     f" -l {mBrainAligner_location}examples/target/50um/target_landmarks/low_landmarks.marker " + 
     f" -g {mBrainAligner_location}examples/target/50um/ " + 
-    f" -o {output_dir}/"+
+    f" -o {output_dir}"+
     " -u 0")
     
     #print ('running local alignment for mouse ' + str(mouse_name))
@@ -222,7 +233,9 @@ def register_swc_to_atlas (csv_path,mBrainAligner_location, swc_file, source_fil
     swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
     swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
     
-    
+    #TODO: Cut up swc into #cores-1
+    #TODO: Run command for every swc in 
+    # XXX XXX XXX
     cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
         " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
         " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
@@ -244,7 +257,7 @@ def register_swc_to_atlas (csv_path,mBrainAligner_location, swc_file, source_fil
     print("registering swc for " + mouse_name)
     print("running swc registration: " + cmd_swc)
     res = os.system(cmd_swc)
-    
+    #XXX XXX XXX
     #debug
     #print('swc_local: ', swc_local)
     #print('swc_file: ',swc_file)
