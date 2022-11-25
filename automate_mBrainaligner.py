@@ -14,25 +14,19 @@ import tifffile
 import shutil
 import multiprocessing as mp
 import numpy as np
+import more_itertools.sliced 
 
-import pandas as pd
-import os
-import glob
-import re
-import tifffile 
-import shutil
-import multiprocessing as mp
-import numpy as np
-
-def atlas_align(source_file, output_dir,mouse_name): 
+def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
+    print(f"Source File:\n{source_file}")
+    print(f"Output Dir:\n{output_dir}")
     #first (global) alignment 
-    cmd_global = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/global_registration " + 
-    " -f /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " +
-    " -m " + str(source_file) +
+    cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
+    f" -f {mBrainAligner_location}examples/target/50um/ " +
+    f" -m \"{source_file}\"" +
     " -p r+f+n " +
-    " -o " + str(output_dir)+ 
+    f" -o \"{output_dir}\"/"+ 
     " -d 70 " +
     " -l 30+30+30 " +
     " -u 0" )
@@ -43,13 +37,14 @@ def atlas_align(source_file, output_dir,mouse_name):
     #run the command via command line 
     res_global = os.system(cmd_global)
     
+    #TODO Include config
     #second (local) alignment 
-    cmd_local = str (" /home/wirrbel/2022-08-25_mbrainaligner/binary/linux_bin/local_registration " + 
-    " -p /home/wirrbel/2022-08-25_mbrainaligner/examples/config/LSFM_config_DeliVR.txt " + 
-    " -s " + str(output_dir) + "/global.v3draw " +
-    " -l /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/target_landmarks/low_landmarks.marker " + 
-    " -g /home/wirrbel/2022-08-25_mbrainaligner/examples/target/50um/ " + 
-    " -o " + str(output_dir + "/")+
+    cmd_local = str(f" {mBrainAligner_location}binary/linux_bin/local_registration " + 
+    f" -p {mBrainAligner_location}examples/config/LSFM_config_DeliVR.txt " + 
+    f" -s {output_dir}/global.v3draw " +
+    f" -l {mBrainAligner_location}examples/target/50um/target_landmarks/low_landmarks.marker " + 
+    f" -g {mBrainAligner_location}examples/target/50um/ " + 
+    f" -o {output_dir}/"+
     " -u 0")
     
     #print ('running local alignment for mouse ' + str(mouse_name))
@@ -58,10 +53,11 @@ def atlas_align(source_file, output_dir,mouse_name):
     res_local = os.system(cmd_local)
 
 
-def rewrite_swc(entry, output_dir,XYZ=False):
+def rewrite_swc(csv_path, output_dir,XYZ=False,parallel_processing=False):
     #define source file 
     #Note this needs to be the ONLY file ending in binary.scv! 
-    csv_path = glob.glob(entry+"/*binary.csv")[0]
+    #TODO remove?
+    # csv_path = glob.glob(entry+"/*binary.csv")[0]
 
     #read file 
     file = pd.read_csv(csv_path)
@@ -83,6 +79,7 @@ def rewrite_swc(entry, output_dir,XYZ=False):
     #split Coords into three columns 
     split = file["Coords"].str.split(" ",n=2,expand=True)
 
+
     #reassign to file 
     if not XYZ:
         file["z"] = split[0]
@@ -92,6 +89,12 @@ def rewrite_swc(entry, output_dir,XYZ=False):
         file["x"] = split[0]
         file["y"] = split[1]
         file["z"] = split[2]
+
+    file["z"] = file["z"].str.replace(re.escape(","), "")
+    file["x"] = file["x"].str.replace(re.escape(","), "")
+    file["y"] = file["y"].str.replace(re.escape(","), "")
+    # print(split)
+    # exit()
         
     file.drop("Coords",axis=1,inplace=True)
     file.drop("Unnamed: 0",axis=1,inplace=True)
@@ -118,20 +121,58 @@ def rewrite_swc(entry, output_dir,XYZ=False):
 
     #add "Parent" column pointing to -1 (=no parent in swc notation)
     file_filtered.insert(5,"Parent", -1)
-
-    #save actual file as swc
-    target_swc_file_name = os.path.join(output_dir,os.path.split(csv_path)[1]+".swc")
-    #remove whitespaces as those will trip up the program 
-    target_swc_file_name = target_swc_file_name.replace(' ','')
     
-    with open(target_swc_file_name, 'w') as swc_target:
-        swc_target.write('##n type x y z radius parent\n')
-        file_filtered.to_csv(swc_target, header=False, sep=' ')
-        swc_target.close()
+    
+    #populate list of output files
+    target_swc_file_name_list = []
+    
+    #If creating several swc sub-files for parallel processing
+    if parallel_processing:
+        #Step 1: Determine number of CPUs (-1 to be safe) and split the cell list into approx. even chunks
+        n_chunks = os.cpu_count()-1
+        chunk_length = round(np.ceil(len(file_filtered)/n_chunks))
         
-    print('successfully wrote ' + str(target_swc_file_name))
+        #step 2: Split list into chunks and save as separate swc files 
+        for chunk in more_itertools.sliced(file_filtered,chunk_length):
+            #determine the row number of the first to help with reassembly)
+            first_cell_number = chunk.iloc[0].name
+            #make it a zero-padded string 
+            first_cell_number = str(first_cell_number).zfill(7)
+            #save chunk as file 
+            target_swc_file_name = os.path.join(output_dir,os.path.split(csv_path)[1]+"chunk_"+first_cell_number+".swc")
+            #remove whitespaces as those will trip up the program 
+            target_swc_file_name = target_swc_file_name.replace(' ','')
+            #remove brackets as those will trip up the program 
+            target_swc_file_name = target_swc_file_name.replace('(','').replace(')','')
+            
+            with open(target_swc_file_name, 'w') as swc_target:
+                swc_target.write('##n type x y z radius parent\n')
+                file_filtered.to_csv(swc_target, header=False, sep=' ')
+                swc_target.close()
+                
+            print('successfully wrote ' + str(target_swc_file_name))
+            #add to file list 
+            target_swc_file_name_list += [target_swc_file_name]
+            
+        return target_swc_file_name_list
     
-    return target_swc_file_name
+    else:
+        #save actual file as swc
+        target_swc_file_name = os.path.join(output_dir,os.path.split(csv_path)[1]+".swc")
+        #remove whitespaces as those will trip up the program 
+        target_swc_file_name = target_swc_file_name.replace(' ','')
+        #remove brackets as those will trip up the program 
+        target_swc_file_name = target_swc_file_name.replace('(','').replace(')','')
+        
+        
+        with open(target_swc_file_name, 'w') as swc_target:
+            swc_target.write('##n type x y z radius parent\n')
+            file_filtered.to_csv(swc_target, header=False, sep=' ')
+            swc_target.close()
+            
+        print('successfully wrote ' + str(target_swc_file_name))
+        
+        return [target_swc_file_name]
 
 def split_parameters (file_path): 
     #retrieve file name
@@ -149,12 +190,11 @@ def split_parameters (file_path):
     
     return parameters_list
 
-def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results_folder):
+def reattach_size_and_copy(csv_path,swc_local,mouse_name,output_dir,aligned_results_folder):
     #### re-attach size column from the original csv 
     #read tranformed swc
     registered_cells = pd.read_csv(swc_local, sep = ' ',skiprows=3,names=['n','type', 'x','y','z','radius','parent'])
     #read the original csv 
-    csv_path = glob.glob(entry+"/*binary.csv")[0]
     original_csv = pd.read_csv(csv_path)
     #merge to new df
     merged = registered_cells.copy()
@@ -174,30 +214,11 @@ def reattach_size_and_copy(entry,swc_local,mouse_name,output_dir,aligned_results
     #shutil.copyfile(swc_local, os.path.join(aligned_results_folder,str(mouse_name)+"_local_registered_data.swc"))
 
 
-def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_folder,XYZ=False): 
-    #run mBrainaligner s swc registration 
-    #create a command that looks like this: 
-    '''
-    ../binary/linux_bin/local_registration  
-    -p config/LSFM_config_original.txt 
-    -s result/LSFM/global.v3draw 
-    -l target/50um/target_landmarks/low_landmarks.marker  
-    -g target/50um/ 
-    -o result/LSFM/ 
-    -u 0
-    '''
+def compute_sampling_factors(mBrainAligner_location, swc_file, source_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=False,parallel_processing=False):
     #determine the shape of the downsampled image 
-    #Note this ONLY works if the v3draw file does contain the complete name of the resampled tif stack (incl '.tif') and it is in the same directory! 
     
-    #determine source v3draw file (again)
-    source_file = glob.glob(entry+"/*.v3draw")[0]
-    #then, split off .v3draw to get resampled tiff stack name 
-    resampled_tif_stack_name = os.path.splitext(os.path.split(source_file)[1])[0]
-    #remove a '_processed' from the name, if present 
-    if resampled_tif_stack_name.endswith('_processed'):
-        resampled_tif_stack_name = resampled_tif_stack_name[:-10]
     #laod tiff stack, then determine size 
-    resampled_tif_stack = tifffile.imread(os.path.join(entry,resampled_tif_stack_name))
+    resampled_tif_stack = tifffile.imread(tiff_path)
     downsampled_z,downsampled_y,downsampled_x = resampled_tif_stack.shape
 
     #determine non-downsampled (original) stack dimensions from swc file name 
@@ -214,83 +235,185 @@ def register_swc_to_atlas (entry,swc_file,mouse_name,output_dir,aligned_results_
     ds_factor_y = original_y/downsampled_y
     ds_factor_z = original_z/downsampled_z
     
-    #define path names for the resulting swc files 
-    swc_resampled = os.path.join(output_dir,str(mouse_name)+"_resampled.swc")
-    swc_global = os.path.join(output_dir,str(mouse_name)+"_global_data.swc")
-    swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
-    swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
+    return ds_factor_x,ds_factor_y,ds_factor_z
+
+def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, source_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=False,parallel_processing=False): 
+    #run mBrainaligner s swc registration 
+    #create a command that looks like this: 
+    '''
+    ../binary/linux_bin/local_registration  
+    -p config/LSFM_config_original.txt 
+    -s result/LSFM/global.v3draw 
+    -l target/50um/target_landmarks/low_landmarks.marker  
+    -g target/50um/ 
+    -o result/LSFM/ 
+    -u 0
+    '''
+    #compute downsampling factors 
+    ds_factor_x,ds_factor_y,ds_factor_z = compute_sampling_factors(mBrainAligner_location, target_swc_file_name_list[0], source_file, tiff_path)
+
+    if parallel_processing:
+        #Determine number of CPUs (-1 to be safe)
+        n_chunks = os.cpu_count()-1
+        
+        #start multiprocessing pool
+        pool = mp.Pool(processes=n_chunks)
+        
+        for target_swc in target_swc_file_name_list:
+            #remove .swc file ending from target_swc 
+            target_swc_name = target_swc[-17:-4]
+            
+            #define path names for the resulting swc files 
+            swc_resampled = str(target_swc_name+"_resampled.swc")
+            swc_global = str(target_swc_name+"_global_data.swc")
+            swc_ffd = str(target_swc_name+"_FFD_data.swc")
+            swc_local = str(target_swc_name+"_local_registered_data.swc")
+                
+            #define path names for the resulting swc files 
+            #swc_resampled = os.path.join(output_dir,str(mouse_name)+"_resampled.swc")
+            #swc_global = os.path.join(output_dir,str(mouse_name)+"_global_data.swc")
+            #swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
+            #swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
+            
+            cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
+                " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
+                " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
+                " -o " + "\"" + target_swc + "\"" +
+                " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
+                " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
+                " -d " + glob.glob(output_dir+"/*FFD_grid.swc")[0] +
+                " -x " + str(ds_factor_x) +
+                " -y " + str(ds_factor_y) +
+                " -z " + str(ds_factor_z) +
+                " -a 228 -b 264 -c 160 " +
+                " -r " + swc_resampled +
+                " -g " + swc_global +
+                " -f " + swc_ffd + 
+                " -s " + swc_local + 
+                " & " #this allows the commands to be run parallel with apply_async. TODO: Make it work with pool.map or so. 
+                )
+            
+            #run the registration 
+            print("registering swc for " + mouse_name)
+            print("running swc registration: " + cmd_swc)
+            #res = os.system(cmd_swc)
+            
+            #TODO: Get it to wait 
+            pool.apply_async(os.system(cmd_swc))
+            
+            #debug
+            #print('swc_local: ', swc_local)
+            #print('swc_file: ',swc_file)
+            #print('mouse_name: ',mouse_name)
+            #print('output_dir: ',output_dir)
+            #print('aligned_results_folder: ',aligned_results_folder)
+        
+    else:   
+            #if single-threaded, run everything only once. 
+            #automatically the target_swc is the first (and hopefully only) file in the list
+            target_swc = target_swc_file_name_list[0]
+            #remove .swc file ending from target_swc 
+            target_swc = target_swc[-17:-4]
+            
+            #define path names for the resulting swc files 
+            swc_resampled = str(target_swc+"_resampled.swc")
+            swc_global = str(target_swc+"_global_data.swc")
+            swc_ffd = str(target_swc+"_FFD_data.swc")
+            swc_local = str(target_swc+"_local_registered_data.swc")
+                
+            #define path names for the resulting swc files 
+            #swc_resampled = os.path.join(output_dir,str(mouse_name)+"_resampled.swc")
+            #swc_global = os.path.join(output_dir,str(mouse_name)+"_global_data.swc")
+            #swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
+            #swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
+            
+            cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
+                " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
+                " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
+                " -o " + "\"" + target_swc + "\"" +
+                " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
+                " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
+                " -d " + glob.glob(output_dir+"/*FFD_grid.swc")[0] +
+                " -x " + str(ds_factor_x) +
+                " -y " + str(ds_factor_y) +
+                " -z " + str(ds_factor_z) +
+                " -a 228 -b 264 -c 160 " +
+                " -r " + swc_resampled +
+                " -g " + swc_global +
+                " -f " + swc_ffd + 
+                " -s " + swc_local
+                )
+            
+            #run the registration 
+            print("registering swc for " + mouse_name)
+            print("running swc registration: " + cmd_swc)
+            res = os.system(cmd_swc)
     
-    
-    cmd_swc =  str (" /home/wirrbel/2022-08-25_mbrainaligner/examples/swc_registration/binary/linux_bin/swc_registration " + 
-        " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
-        " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
-        " -o " + "\"" + swc_file + "\"" +
-        " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
-        " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
-        " -d " + glob.glob(output_dir+"/*FFD_grid.swc")[0] +
-        " -x " + str(ds_factor_x) +
-        " -y " + str(ds_factor_y) +
-        " -z " + str(ds_factor_z) +
-        " -a 228 -b 264 -c 160 " +
-        " -r " + swc_resampled +
-        " -g " + swc_global +
-        " -f " + swc_ffd + 
-        " -s " + swc_local
-        )
-    
-    #run the registration 
-    print("registering swc for " + mouse_name)
-    print("running swc registration: " + cmd_swc)
-    res = os.system(cmd_swc)
-    
-    #debug
-    #print('swc_local: ', swc_local)
-    #print('swc_file: ',swc_file)
-    #print('mouse_name: ',mouse_name)
-    #print('output_dir: ',output_dir)
-    #print('aligned_results_folder: ',aligned_results_folder)
-    
-    #re-attach original size column and copy to new 
-    reattach_size_and_copy(entry,swc_local,mouse_name, output_dir, aligned_results_folder)
-    
-def run_mbrainaligner_and_swc_reg(entry, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
+def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None,aligned_results_folder=-1,mBrainAligner_location=-1):  
     ''' 
     # TODO: automate v3d generation, under linux use the following commandline code https://www.nitrc.org/forum/message.php?msg_id=18446 
     # (though the dll now is in plugins/data_IO/convert_file_format/convert_file_format.dll)
     
     Inputs are organized as follows:
     entry = path to the v3d file 
+    settings = configuration file
     xyz = whether the connected_component analysis data is XYZ (True) or ZXY (False). Default False. 
     latest_output = if there are previously computed alignment files, you can put the path here. Default None. 
     aligned_results_folder = a collection folder where all results are collected (they will be locally saved next to the original data as well)
     mBrainAligner_location = the location of the mBrainAligner files, i.e. D:/MoritzNegwer/Documents/mBrainAligner
      
     '''
+    entry_folder = entry.split("/")[-1].replace(".csv","")
+    brain = ("_").join(entry_folder.split("_")[1:])
+    orientation = entry_folder.split("_")[0]
+    #TODO Find the v3draw
+    v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_downsampled.v3draw")
+    tiff_path   = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_resampled.tif")
+    csv_path    = entry#os.path.join(settings["postprocessing"]["output_location"], brain) 
+
     #if latest is not given, fill in something 
     if latest_output is None:
         latest_output = '2022-04-19_mBrainAligner_'
     
-    #define source file. This WILL fail if there is more than one v3draw file in the folder! 
-    source_file = glob.glob(entry+"/*.v3draw")[0]
-    print (source_file)
+    #define source file. 
+    source_file = v3draw_path 
+    print(f"Brain {brain}")
+    print(f"Source file {source_file}")
+    print(f"CSV path {csv_path}")
     
     #extract mouse name from entry directory 
-    mouse_name = os.path.split(entry)[1][:9]
+    #TODO Define mouse name directly in input
+    mouse_name = brain #os.path.split(entry)[1][:9]
     
     #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
-    output_dir = os.path.join(entry,latest_output + mouse_name)
-    try: 
+    #TODO Define output dir directly in input
+    output_dir = settings["atlas_alignment"]["output_location"]
+    if not os.path.exists(output_dir):
         os.mkdir(output_dir)
-    except:
-        pass    
+    output_dir = os.path.join(output_dir, mouse_name)
+    if not os.path.exists(output_dir):
+        os.mkdir(output_dir)
 
+    # output_dir = os.path.join(aligned_results_folder,mouse_name)
+    # try: 
+    #     os.mkdir(output_dir)
+    # except:
+    #     pass    
+    print(f"latest_output {latest_output}")
+    print(f"Output dir {output_dir}")
+
+    mBrainAligner_location = settings["atlas_alignment"]["mBrainAligner_location"]
     #run mBrainAligner-to-atlas registration
-    atlas_align(source_file,output_dir,mouse_name)
+    atlas_align(mBrainAligner_location, source_file,output_dir,mouse_name)
     
     #rewrite swc from Rami's blob swc
-    swc_file = rewrite_swc(entry, output_dir,XYZ=xyz)
+    target_swc_file_name_list = rewrite_swc(csv_path, output_dir,XYZ=xyz,parallel_processing=True)
     
     #align swc to atlas
-    register_swc_to_atlas(entry, swc_file, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
+    register_swc_to_atlas   (mBrainAligner_location, target_swc_file_name_list, source_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=xyz,parallel_processing=True)
     
+    #TODO: reassemble local_swc outputs once done 
+    
+    #re-attach original size column and copy to new 
+    #reattach_size_and_copy(csv_path,swc_local,mouse_name, output_dir, aligned_results_folder)
 
