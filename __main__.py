@@ -23,25 +23,24 @@ def setup_folders(settings):
     if not os.path.exists("./data/"):
         os.mkdir("./data/")
     setup_subfolders(settings)
-    # Setup subfolders for the mask detection stage
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "masked_raw"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "ventricles_zplane"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled"))
-    os.mkdir(os.path.join(settings["mask_detection"]["output_location"], "stack_resampled_mask"))
 
 # Load settings
 settings = {}
 with open("config_test.json","r") as file:
     settings = json.loads(file.read())
 
-# Setup the file structure
+# # Setup the file structure
 setup_folders(settings)
 
-# Downsample
+# # Downsample
+# # Downsample, filter out ventricles, upsample and mask the raw images
+# # Multiple intermediate steps are saved for further steps down the pipeline
 for brain in os.listdir(settings["raw_location"]):
     downsample_mask(settings, brain)
 
 # Infer
+# Run inference of the trained deep learning network on the 
+# masked brain images
 batch_path = ""
 
 if settings["blob_detection"]["input_location"] == "":
@@ -49,22 +48,31 @@ if settings["blob_detection"]["input_location"] == "":
 else:
     batch = Path(settings["blob_detection"]["input_location"])
 
+print(f"Blob detection in {batch}")
 mice = batch.dirs()
+print(f"Blob detection for {mice}")
 
 for mouse in mice:
+    print(f"Detecting in {mouse}")
+    mouse_name = mouse.name
+    mouse = os.path.join(mouse, "masked_niftis")
     slices = mouse.files("*.nii.gz")
     inference.run_inference(niftis          = slices,\
                             output_folder   = settings["blob_detection"]["output_location"],\
                             model_weights   = settings["blob_detection"]["model_location"], \
-                            comment         = mouse.name)
+                            tta             = False,
+                            comment         = mouse_name)
 
 # Post-processing
+# Counts individual blobs, filters by size and saves each blob, 
+# its size and its location (x/y/z) in a csv file for each brain
 count_blobs(settings)
 
 # Atlas alignment
-postprocessed_files = settings["postprocessing"]["output_location"].files("*.csv")
+postprocessed_files = Path(settings["postprocessing"]["output_location"]).files("*.csv")
 for blobcoordinates in postprocessed_files:
     run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
+                                  settings                  = settings,\
                                   xyz                       = False,\
                                   latest_output             = None,\
                                   aligned_results_folder    = settings["atlas_alignment"]["collection_folder"],\

@@ -15,7 +15,10 @@ from torch.utils.data import DataLoader
 import monai
 from monai.networks.nets import BasicUNet
 from monai.data import list_data_collate
-from monai.inferers import SlidingWindowInferer
+# from monai.inferers import SlidingWindowInferer
+import sys
+sys.path.append("/home/rami/Documents/delivr_cfos/inference/")
+from sliding_window_inferer import SlidingWindowInferer
 
 from monai.transforms import RandGaussianNoised
 from monai.transforms import (
@@ -36,7 +39,7 @@ def create_nifti_seg(
 
     # generate segmentation nifti
     activated_outputs = (
-        (onehot_model_outputs_CHWD[0][:, :, :].sigmoid()).detach().cpu().numpy()
+        (onehot_model_outputs_CHWD[0][:, :, :].to(torch.float).sigmoid()).detach().cpu().numpy()
     )
 
     binarized_outputs = activated_outputs >= threshold
@@ -60,7 +63,7 @@ def run_inference(
     tta=True,
     threshold=0.5,
     cuda_devices="0,1",
-    crop_size=(96, 96, 64),
+    crop_size=(64,64, 32),
     workers=0,
     sw_batch_size=42,
     overlap=0.5,
@@ -172,8 +175,13 @@ def run_inference(
     time_date = time.strftime("%Y-%m-%d_%H-%M-%S")
     print("start:", time_date)
 
+    # TODO lets see how we can refactor this
+    # testing_session_path = Path(
+    #     os.path.abspath(output_folder + "/" + time_date + "_" + comment)
+    # )
+
     testing_session_path = Path(
-        os.path.abspath(output_folder + "/" + time_date + "_" + comment)
+        os.path.abspath(output_folder + "/" + comment)
     )
 
     # meta_path = testing_session_path + "/meta"
