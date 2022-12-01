@@ -15,15 +15,6 @@ import shutil
 import multiprocessing as mp
 import numpy as np
 
-import pandas as pd
-import os
-import glob
-import re
-import tifffile 
-import shutil
-import multiprocessing as mp
-import numpy as np
-
 #TODO use masked v3draw
 """
 mBrainAligner
