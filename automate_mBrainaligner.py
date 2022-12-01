@@ -2,18 +2,8 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Jan 10 10:28:02 2022
-
 @author: wirrbel
 """
-
-import pandas as pd
-import os
-import glob
-import re
-import tifffile 
-import shutil
-import multiprocessing as mp
-import numpy as np
 
 import pandas as pd
 import os
@@ -330,5 +320,3 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     
     #align swc to atlas
     register_swc_to_atlas(mBrainAligner_location, csv_path, swc_file, source_file, tiff_path, mouse_name, output_dir, aligned_results_folder,XYZ=xyz)
-    
-
