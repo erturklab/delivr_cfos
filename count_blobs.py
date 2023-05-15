@@ -33,8 +33,7 @@ def load_cached_stats(settings, brain):
             result = os.path.join(path_in, item)  
     return result
 
-
-def count_blobs(settings, path_in, brain_i, brain, stack_shape):
+def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max_size=-1):
     path_out    = settings["postprocessing"]["output_location"]
     
     if not os.path.exists(path_out):
@@ -88,16 +87,28 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape):
     df = pd.DataFrame(columns = columns)
 
     for i in range(1, N):
-        # start = datetime.datetime.now()
-        centroids_list = [stats["centroids"][i].tolist()]
-        df_l = pd.DataFrame({"Blob":i,\
-                "Coords":centroids_list,\
-                "Size":stats["voxel_counts"][i]})
-        # df = df.append(df_l, ignore_index=True)
-        df = pd.concat([df, df_l])
-        # delta = datetime.datetime.now()
-        # rem = (N - i) * delta
-        # print(f"{i} / {N}, ETA {rem}", end="\r", flush=True)
+        if min_size == -1:
+            if max_size == -1:
+                centroids_list = [stats["centroids"][i].tolist()]
+                df_l = pd.DataFrame({"Blob":i,\
+                        "Coords":centroids_list,\
+                        "Size":stats["voxel_counts"][i]})
+                df = pd.concat([df, df_l])
+            else:
+                if stats["voxel_counts"] <= max_size:
+                    centroids_list = [stats["centroids"][i].tolist()]
+                    df_l = pd.DataFrame({"Blob":i,\
+                            "Coords":centroids_list,\
+                            "Size":stats["voxel_counts"][i]})
+                    df = pd.concat([df, df_l])
+        else:
+            if stats["voxel_counts"] >= min_size:
+                centroids_list = [stats["centroids"][i].tolist()]
+                df_l = pd.DataFrame({"Blob":i,\
+                        "Coords":centroids_list,\
+                        "Size":stats["voxel_counts"][i]})
+                df = pd.concat([df, df_l])
+
 
     output_name = f"{x.shape}_{brain.replace('.nii.gz','')}.csv"
     df.to_csv(path_out + output_name)
