@@ -1,0 +1,61 @@
+{
+    "raw_location":"/data/raw/",
+    "output_location":"/data/output/",
+    "mask_detection":{
+        "ilastik_location":"/delivr/ilastik/",
+        "ilastik_model":"./models/random_forest_weights.ilp",
+        "teraconverter_location":"/delivr/teraconverter/",
+        "output_location":"/data/output/01_mask_detection/output/",
+        "downsample_steps":{
+            "original_um_x":1.62,
+            "original_um_y":1.62,
+            "original_um_z":6.0 ,
+            "downsample_um_x":25.0,
+            "downsample_um_y":25.0,
+            "downsample_um_z":25.0
+        }
+    },
+    "blob_detection":{
+        "input_location":"/data/output/01_mask_detection/output/",
+        "model_location":"./models/inference_weights.tar",
+        "output_location":"/data/output/02_blob_detection/output/"
+    },
+    "postprocessing":{
+        "input_location":"/data/output/02_blob_detection/output/",
+        "output_location":"/data/output/03_postprocessing/output/"
+    },
+    "atlas_alignment":{
+        "input_location":"/data/output/03_postprocessing/output/",
+        "output_location":"/data/output/04_atlas_alignment/output/",
+        "mBrainAligner_location":"/delivr/mbrainaligner/",
+        "collection_folder":"/data/output/04_atlas_alignment/collection/",
+        "parallel_processing":"True"
+    },
+    "region_assignment":{
+        "input_location":"/data/output/04_atlas_alignment/collection/",
+        "CCF3_atlasfile":"./models/CCF3_P56_annotation.tif",
+        "CCF3_ontology":"./models/AllenMouseCCFv3_ontology_22Feb2021.xml",
+        "output_location":"/data/output/05_region_assignment/"
+    },
+    "visualization":{
+        "input_csv_location":       "/data/output/04_atlas_alignment/collection/",
+        "input_size_location":      "/data/output/03_postprocessing/output/",
+        "input_prediction_location":"/data/output/02_blob_detection/output/",
+        "cache_location":           "/data/output/06_visualization/cache/",
+        "output_location":          "/data/output/06_visualization/output/"
+    },
+    "FLAGS":{
+        "ABSPATHS":false,
+        "TEST_TIME_AUGMENTATION":true,
+        "MASK_DOWNSAMPLE":true,
+        "BLOB_DETECTION":true,
+        "POSTPROCESSING":true,
+        "ATLAS_ALIGNMENT":true,
+        "REGION_ASSIGNMENT":true,
+        "VISUALIZATION":false,
+        "SAVE_MASK_OUTPUT":true,
+        "SAVE_NETWORK_OUTPUT":true,
+        "SAVE_POSTPROCESSING_OUTPUT":true,
+        "SAVE_ATLAS_OUTPUT":true
+    }
+}
