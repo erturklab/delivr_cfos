@@ -149,6 +149,9 @@ if __name__ == "__main__":
         path_in     = settings["postprocessing"]["input_location"]
         path_out    = settings["postprocessing"]["output_location"]
         hookoverall += 1
+
+        min_size = settings["postprocessing"]["min_size"]
+        max_size = settings["postprocessing"]["max_size"]
         
         if not os.path.exists(path_out):
             os.mkdir(path_out)
@@ -163,7 +166,7 @@ if __name__ == "__main__":
             except:
                 stack_shape = get_real_size(os.path.join(settings["raw_location"], brain))
                 stack_shape = (1,1,*stack_shape)
-            count_blobs(settings, path_in, brain_i, brain,stack_shape)
+            count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size, max_size)
 
     # Atlas alignment
     if settings["FLAGS"]["ATLAS_ALIGNMENT"]:

@@ -22,7 +22,9 @@
     },
     "postprocessing":{
         "input_location":"/data/output/02_blob_detection/output/",
-        "output_location":"/data/output/03_postprocessing/output/"
+        "output_location":"/data/output/03_postprocessing/output/",
+        "min_size":-1,
+        "max_size":-1
     },
     "atlas_alignment":{
         "input_location":"/data/output/03_postprocessing/output/",

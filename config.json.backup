@@ -22,6 +22,8 @@
     "postprocessing":{
         "input_location":"/data/blob_detection/output/",
         "output_location":"/data/postprocessing/output/"
+        "input_location":"/data/output/02_blob_detection/output/",
+        "output_location":"/data/output/03_postprocessing/output/",
     },
     "atlas_alignment":{
         "input_location":"/data/postprocessing/output/",
