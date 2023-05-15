@@ -18,6 +18,13 @@ import torch.nn.functional as F
 from monai.data.utils import compute_importance_map, dense_patch_slices, get_valid_patch_size
 from monai.utils import BlendMode, PytorchPadMode, fall_back_tuple, look_up_option
 from monai.inferers.inferer import Inferer
+from monai.transforms import RandGaussianNoise
+
+
+
+
+
+
 
 __all__ = ["sliding_window_inference"]
 
@@ -35,6 +42,10 @@ def sliding_window_inference(
     sw_device: Union[torch.device, str, None] = None,
     device: Union[torch.device, str, None] = None,
     SIGMOID : bool = False,
+    output_image: torch.tensor = None,
+    count_map: torch.tensor = None,
+    tta: bool = None,
+    flip_dim: int = None,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -84,25 +95,31 @@ def sliding_window_inference(
         - input must be channel-first and have a batch dim, supports N-D sliding window.
 
     """
+
+
+    #to inference.py
+
     num_spatial_dims = len(inputs.shape) - 2
+
     if overlap < 0 or overlap >= 1:
         raise AssertionError("overlap must be >= 0 and < 1.")
 
     # determine image spatial size and batch size
     # Note: all input images must have the same image size and batch size
-    image_size_ = list(inputs.shape[2:])
+    image_size = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
-
-
-    roi_size = fall_back_tuple(roi_size, image_size_)
+    
+    
+    roi_size = fall_back_tuple(roi_size, image_size)
     # in case that image size is smaller than roi size
-    image_size = tuple(max(image_size_[i], roi_size[i]) for i in range(num_spatial_dims))
+    image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
+    
     pad_size = []
     for k in range(len(inputs.shape) - 1, 1, -1):
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
         half = diff // 2
         pad_size.extend([half, diff - half])
-    print(f"Padding {inputs.shape} with {pad_size}, converting to float...")
+    #print(f"Padding {inputs.shape} with {pad_size}, converting to float...")
     # inputs = inputs.float()
     # inputs = F.pad(inputs, pad=pad_size, mode=look_up_option(padding_mode, PytorchPadMode).value, value=cval)
     np_pad = []
@@ -110,77 +127,134 @@ def sliding_window_inference(
          np_pad.append((pad_size[i], pad_size[i]))
     
     np_pad = tuple(np_pad)
+    
+    #this loads the entire input into RAM, though not necessary in most cases    
+    #if max(max(np_pad)) > 0:
+    #    inputs = np.pad(inputs, pad_width=np_pad, mode="reflect")
+    #    print(f"After padding {np_pad} : {inputs.shape}")
+    
+    
+    #moved to inference, still needed here
+    #print("Padding done, converting down...")
 
-    inputs = np.pad(inputs, pad_width=np_pad, mode="reflect")
-    print(f"After padding {np_pad} : {inputs.shape}")
-    print("Padding done, converting down...")
-
-    inputs = torch.tensor(inputs, dtype=torch.float16)
-    if device is None:
-        device = inputs.device
-    if sw_device is None:
-        sw_device = inputs.device
-
-
+    #with (64,64,32) roi_size this works out to (32,32,16)
     scan_interval = _get_scan_interval(image_size, roi_size, num_spatial_dims, overlap)
 
     # Store all slices in list
     slices = dense_patch_slices(image_size, roi_size, scan_interval)
     num_win = len(slices)  # number of windows per image
     total_slices = num_win * batch_size  # total number of windows
-
+    
     # Create window-level importance map
-    importance_map = compute_importance_map(
-        get_valid_patch_size(image_size, roi_size), mode=mode, sigma_scale=sigma_scale, device=device
-    )
+    importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode='constant', sigma_scale=sigma_scale)
 
     # Perform predictions
     print("Inferring...")
-    output_image, count_map = torch.tensor(0.0, device=device), torch.tensor(0.0, device=device)
-    _initialized = False
+    
+    
+    #create empty output tensors 
+    #output_image, count_map = torch.tensor(0.0, dtype=torch.float16, device=device), torch.tensor(0.0, dtype=torch.float16, device=device)
+    
+    #Set initialized to False to trigger initialization on first run 
+    _initialized = True
+    
+    #calculate the amount of slices in this batch (for "inferring... x / 142" progress report)
     slice_l = len(list(range(0, total_slices, sw_batch_size)))
+    
+
+    #split total slices into number of sw_batches (slice_i) and number of slices within the total_slices (slice_g), 
+    #then run inference on each of those slices 
     for slice_i, slice_g in enumerate(range(0, total_slices, sw_batch_size)):
         print(f"{slice_i}/{slice_l}",end="\r",flush=True)
+
+        #create the range of slice numbers within current sw_batch
         slice_range = range(slice_g, min(slice_g + sw_batch_size, total_slices))
-        unravel_slice = [
-            [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
-            for idx in slice_range
-        ]
-        window_data = torch.cat([inputs[win_slice] for win_slice in unravel_slice])
-        window_data = window_data.type(torch.float)
+
+        #pick out the (indices of) the slices from among the window list 
+        #unravel_slice = [
+        #    [slice(int(idx / num_win), int(idx / num_win) + 1), slice(None)] + list(slices[idx % num_win])
+        #    for idx in slice_range
+        #]
+
+        unravel_slice = []
+        for idx in slice_range:
+            slice_block = [[list([each_slice.start , each_slice.stop]) for each_slice in slices[idx % num_win]]]
+            unravel_slice += slice_block
+        
+
+        #load the data as subset from the main input dataset (that should be a tensor by now) and concatenate all sw_batch slices into one tensor
+        #load data 
+        data_to_load = []
+        for win_slice in unravel_slice:
+            #try to load selectively from disk
+            single_slice_load = inputs[:,:,win_slice[0][0]:win_slice[0][1],win_slice[1][0]:win_slice[1][1],win_slice[2][0]:win_slice[2][1]].copy()
+            #cast as signed 32-bit integer for conversion to 32-bit float
+            single_slice_load = single_slice_load.astype(np.int32)
+            #cast to tensor 
+            single_slice_load = torch.as_tensor(single_slice_load,dtype=torch.float32)
+            #add extra dimensions at beginning
+            single_slice_load = single_slice_load[None,:,:,:]
+            #single_slice_load = single_slice_load[None,:,:,:,:]
+            data_to_load += single_slice_load
+        
+        #concatenate all win_slices to a single batch (influenced by sw_batch_size, set according to on the graphics card VRAM)
+        window_data = torch.cat(data_to_load,dim=0)
+        #cast as 32-bit float and send to graphics card 
+        window_data = window_data.type(torch.float32)     
         window_data = window_data.cuda()
         window_data.to(sw_device)
 
+        #add noise if running with test-time augmentation
+        if tta == True:
+            #window_data = RandGaussianNoise(prob=1.0, std=0.001)(window_data)
+            window_data[0,0,:,:,:] = window_data[0,0,:,:,:] + (0.001**0.5)*torch.randn(size=window_data[0,0,:,:,:].shape,out=window_data[0,0,:,:,:],dtype=torch.float32,device=sw_device)
+
+        # if the data needs to be flipped, do this here (flip_dim: 2 = z, 3 = y, 4 = x) 
+        if flip_dim is not None:
+            window_data = torch.flip(window_data,dims=[flip_dim])
+
+        #run the actual prediction 
         seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
+        
         if SIGMOID:
             seg_prob = torch.sigmoid(seg_prob)
 
-        seg_prob = seg_prob.to(torch.half)
+        # flip data back if previously flipped 
+        if flip_dim is not None:
+            seg_prob = torch.flip(seg_prob,dims=[flip_dim])
         
-        if not _initialized:  # init. buffer at the first iteration
-            output_classes = seg_prob.shape[1]
-            output_shape = [batch_size, output_classes] + list(image_size)
-            # allocate memory to store the full output and the count for overlapping parts
-            output_image = torch.zeros(output_shape, dtype=torch.float16, device=device)
-            count_map = torch.zeros(output_shape, dtype=torch.float16, device=device)
-            _initialized = True
+        #send to cpu
+        #seg_prob.to(device)
 
+        #cast the results back to float16 
+        seg_prob = seg_prob.to(torch.float16)
+        
         # store the result in the proper location of the full output. Apply weights from importance map.
         for idx, original_idx in zip(slice_range, unravel_slice):
-            output_image[original_idx] += importance_map * seg_prob[idx - slice_g]
-            count_map[original_idx] += importance_map
+            #print("original_idx: ",original_idx)
+            #print("idx: ", idx)
+            #print("unravel_slice: ",unravel_slice)            
+            #print("output_image[original_idx]: ",output_image[original_idx])
+            #print("importance_map shape: ",importance_map.shape)
+            #print("seg_prob shape: ",seg_prob.shape)
+            #print("current seg_prob shape: ",seg_prob[idx - slice_g].shape)
+            output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
+            count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
 
     # account for any overlapping sections
     output_image = output_image / count_map
+    
 
+    #generate slice placement list (I think)
+    
     final_slicing: List[slice] = []
     for sp in range(num_spatial_dims):
-        slice_dim = slice(pad_size[sp * 2], image_size_[num_spatial_dims - sp - 1] + pad_size[sp * 2])
+        slice_dim = slice(pad_size[sp * 2], image_size[num_spatial_dims - sp - 1] + pad_size[sp * 2])
         final_slicing.insert(0, slice_dim)
     while len(final_slicing) < len(output_image.shape):
         final_slicing.insert(0, slice(None))
     return output_image[final_slicing]
-
+    
 
 def _get_scan_interval(
     image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float

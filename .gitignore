@@ -133,3 +133,4 @@ data/
 
 # Test config file
 config_test.json
+config_test_single_brain.json

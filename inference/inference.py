@@ -4,68 +4,124 @@ import numpy as np
 import nibabel as nib
 from path import Path
 from tqdm import tqdm
-
+from skimage.util import view_as_windows
 # import shutil
 import time
+#import psutil
 
 # dl
 import torch
-from torch.utils.data import DataLoader
 
 import monai
 from monai.networks.nets import BasicUNet
-from monai.data import list_data_collate
-# from monai.inferers import SlidingWindowInferer
-import sys
-sys.path.append("/home/rami/Documents/delivr_cfos/inference/")
-from sliding_window_inferer import SlidingWindowInferer
+from .sliding_window_inferer import SlidingWindowInferer
 
-from monai.transforms import RandGaussianNoised
-from monai.transforms import (
-    Compose,
-    LoadImageD,
-    AddChanneld,
-    Lambdad,
-    ToTensord,
-)
+from monai.transforms import RandGaussianNoise
 
+def update_idx (old_idx,new_idx,total_size):
+    #update both old_idx and new_idx, taking into account which dimensions could change
+    for i in range(len(old_idx)):
+        if new_idx[i] < total_size[i]:
+            new_idx[i] += old_idx[i]
+        #in case one dimension is completely filled, make sure that old_idx starts from beginning
+        if old_idx[i] == total_size[i]:
+            old_idx[i] = 0
+    return old_idx, new_idx
 
 def create_nifti_seg(
     threshold,
-    onehot_model_outputs_CHWD,
+    model_output,
     output_file,
     network_output_file,
 ):
+    
+    #save activated network output as npy, then re-read
+    np.save(network_output_file,np.zeros(shape=model_output.shape[1:], dtype=np.float32))
+    activated_outputs = np.memmap(network_output_file,mode='w+',dtype=np.float32,shape=model_output.shape[1:])
+    
+    #save binarized network output as npy, then re-read
+    np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
+    binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
+    
+    #construct iterator over output_image array. Tweak buffer size for larger blocks
+    img_iterator = np.lib.Arrayterator(model_output[0,0,:,:,:], 1000**3)
+    
+    #construct indices for placing the resulting values back
+    idx = [0,0,0]
+    old_idx = idx
+    
+    #iterate through model_output
+    for subarr in img_iterator:
+        #generate indices for placing the output in the correct array locations
+        idx = list(subarr.shape)
+        old_idx, idx = update_idx(old_idx,idx,list(img_iterator.shape))
+        #apply sigmoid function to subarray
+        subarr = torch.as_tensor(subarr,dtype=torch.float)
+        sigmoid = (subarr[:, :, :].sigmoid()).detach().cpu().numpy()  
+        #export to activated_outputs array
+        activated_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
+        #threshold and output export to binarized_outputs array
+        thresholded_sigmoid = sigmoid >= threshold
+        binarized_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = thresholded_sigmoid.astype(np.uint8)
+        #update index 
+        old_idx = idx
+    
+    #ensure exported arrays are written to disk 
+    activated_outputs.flush()
+    binarized_outputs.flush()
 
-    # generate segmentation nifti
-    activated_outputs = (
-        (onehot_model_outputs_CHWD[0][:, :, :].to(torch.float).sigmoid()).detach().cpu().numpy()
-    )
 
-    binarized_outputs = activated_outputs >= threshold
+def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True):
+    #creates a zeroed-out npy file with shape=shape on the disk, returns as torch tensor view. dtype is float16. 
+    #first make sure previous temp files are erased 
+    try:                
+        os.remove (file_location)
+    except:
+        pass
+    #save empty np array on disk 
+    np.save(file_location,np.zeros(shape=shape, dtype=np.float16))
+    #now re-read from disk as memmap (saving RAM)
+    empty_memmap = np.memmap(file_location,mode='w+',dtype=np.float16,shape=shape)
+    if return_torch:
+        empty_memmap = torch.as_tensor(empty_memmap,dtype=torch.float16)
+    return empty_memmap
 
-    binarized_outputs = binarized_outputs.astype(np.uint8)
+'''
+def create_noised_memmap(file_location, shape, input_dataset):
+    #create a noised copy of the input image as memmap on disk
+    #first make sure previous temp files are erased 
+    try:                
+        os.remove (file_location)
+    except:
+        pass
+    #make a copy of the input on disk 
+    np.save(file_location,input_dataset)
+    #now load memmapped version 
+    memmapped_input = np.memmap(file_location,mode='w+',dtype=np.float16,shape=shape)
+    #create a random offset for the 3 image dimensions 
+    #TODO: This is single-thread and unbearably slow, need to fix 
+    random_result = MultithreadedRNG(n = np.prod(single_slice_load[0,0,:,:,:].shape), seed = 12345 ).values.reshape(single_slice_load[0,0,:,:,:].shape) 
 
-    segmentation_image = nib.Nifti1Image(binarized_outputs, np.eye(4))
-    nib.save(segmentation_image, output_file)
-
-    network_output_image = nib.Nifti1Image(activated_outputs, np.eye(4))
-
-    nib.save(network_output_image, network_output_file)
-
+    memmapped_input = torch.as_tensor(memmapped_input,dtype=torch.float16)
+    #now create noised version 
+    #memmapped_input = RandGaussianNoise(prob=1.0, std=0.001)(memmapped_input.type(torch.float16))
+    return memmapped_input
+'''
+    
 
 # GO
 def run_inference(
     niftis,
     output_folder,
+    stack_shape,
     comment="none",
     model_weights="weights/inference_weights.tar",
-    tta=True,
+    tta=False,
     threshold=0.5,
     cuda_devices="0,1",
     crop_size=(64,64, 32),
     workers=0,
-    sw_batch_size=42,
+    sw_batch_size=30, 
     overlap=0.5,
     verbosity=True,
 ):
@@ -94,47 +150,28 @@ def run_inference(
     os.environ["CUDA_VISIBLE_DEVICES"] = cuda_devices
     multi_gpu = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Running on {device}")
 
     # clean memory
     torch.cuda.empty_cache()
+    
+    #smartly set sw_batch_size to occupy available VRAM 
+    #available_devices = torch.cuda.device_count()
+    #available_mem = available_devices*torch.cuda.mem_get_info()[0]
+    available_mem = np.sum([torch.cuda.mem_get_info(i)[0] for i in range(torch.cuda.device_count())])
+    available_mem = int(available_mem*0.95) #safety margin
+
+    #convert to MB 
+    available_mem = available_mem/(1024**2)
+    #230 MB is empirically determined mem requirement for sw_crop (64,64,32)
+    empirical_sw_batch_size = int(round(available_mem / 230))
+    sw_batch_size = empirical_sw_batch_size
 
     # T R A N S F O R M S
-    inference_transforms = Compose(
-        [
-            # << PREPROCESSING transforms >>
-            LoadImageD(keys="images"),
-            AddChanneld(keys="images"),
-            Lambdad(["images"], np.nan_to_num),
-            ToTensord(keys="images"),
-        ]
-    )
-    # D A T A L O A D E R
-    dicts = list()
-
-    for nifti in niftis:
-        print("nifti:", nifti)
-        nifti = Path(os.path.abspath(nifti))
-        images = [nifti]
-
-        the_dict = {
-            "exam": nifti.name,
-            "micro": nifti,
-            "images": images,
-        }
-
-        dicts.append(the_dict)
-
     # datasets
-    inf_ds = monai.data.Dataset(data=dicts, transform=inference_transforms)
-
-    # dataloaders
-    data_loader = DataLoader(
-        inf_ds,
-        batch_size=1,
-        num_workers=workers,
-        collate_fn=list_data_collate,
-        shuffle=False,
-    )
+    dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
+    dataset = dataset_on_disk
+    #dataset = torch.as_tensor(dataset_on_disk)
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
@@ -155,8 +192,8 @@ def run_inference(
     inferer = SlidingWindowInferer(
         roi_size=patch_size,
         sw_batch_size=sw_batch_size,
-        sw_device="cuda",
-        device="cpu",
+        sw_device= torch.device('cuda' if torch.cuda.is_available() else 'cpu'),
+        device=torch.device('cpu'),
         overlap=overlap,
         mode="gaussian",
         padding_mode="replicate",
@@ -170,22 +207,26 @@ def run_inference(
     # load
     model.load_state_dict(checkpoint["model_state"])
 
-    # epoch stuff
+    ### DATA PREP ###
+    #create output folder if not already present:
+    #try to create output folder in case it's not there yet     
+    os.makedirs(os.path.join(output_folder, comment), exist_ok=True)
 
+    #create empty output tensors (memmapped npy underneath) 
+    output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape)
+    count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape)
+    
+    #if already part-way done, load results from disk:
+    #output_image = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"inference_output.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
+    #count_map = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"count_map.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
+
+    # epoch stuff
     time_date = time.strftime("%Y-%m-%d_%H-%M-%S")
     print("start:", time_date)
-
-    # TODO lets see how we can refactor this
-    # testing_session_path = Path(
-    #     os.path.abspath(output_folder + "/" + time_date + "_" + comment)
-    # )
 
     testing_session_path = Path(
         os.path.abspath(output_folder + "/" + comment)
     )
-
-    # meta_path = testing_session_path + "/meta"
-    # os.makedirs(meta_path, exist_ok=True)
 
     netouts_path = testing_session_path + "/network_outputs/"
     os.makedirs(netouts_path, exist_ok=True)
@@ -193,74 +234,55 @@ def run_inference(
     binaries_path = testing_session_path + "/binary_segmentations/"
     os.makedirs(binaries_path, exist_ok=True)
 
-    # model_weights = Path(model_weights)
-    # shutil.copyfile(model_weights, meta_path + "/" + model_weights.name)
-    # checkpoint["model_state"] = model.module.state_dict()
-    # torch.save(checkpoint, resumeCheckpointFile.name)
-
     # limit batch length?!
     batchLength = 0
 
     # eval
     with torch.no_grad():
         model.eval()
-        # loop through batches
-        for counter, data in enumerate(tqdm(data_loader, 0)):
-            if batchLength != 0:
-                if counter == batchLength:
-                    break
+        #run sliding window inference 
+        
+        output_image = inferer(dataset, model, output_image = output_image, count_map = count_map)
+        #print("first inference finished")           
+         
 
-            # get the inputs and labels
-            # print(data)
-            # inputs = data["images"].float()
-            inputs = data["images"]
+        # test time augmentations
+        if tta == True:
+            n = 1.0
+            for _ in range(4):
+                #print("creating noised image for test-time augmentation")
+                #create an empty count map again
+                                
+                #re-run inferer while creating noised data on the fly
+                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True)
+                n = n + 1.0
 
-            outputs = inferer(inputs, model)
+                #create an empty count map again
+                #flip Z 
+                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 2)
+                n = n + 1.0
 
-            # test time augmentations
-            if tta == True:
-                n = 1.0
-                for _ in range(4):
-                    # test time augmentations
-                    _img = RandGaussianNoised(keys="images", prob=1.0, std=0.001)(data)[
-                        "images"
-                    ]
+                #create an empty count map again
+                #flip Y
+                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
+                n = n + 1.0
 
-                    output = inferer(_img, model)
-                    outputs = outputs + output
-                    n = n + 1.0
-                    for dims in [[2], [3]]:
-                        flip_pred = inferer(torch.flip(_img, dims=dims), model)
+            #average outputs at the end of tta
+            output_image = output_image / n
 
-                        output = torch.flip(flip_pred, dims=dims)
-                        outputs = outputs + output
-                        n = n + 1.0
-                outputs = outputs / n
+    #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
+    os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
 
-            print("inputs shape:", inputs.shape)
-            print("outputs:", outputs.shape)
-            print("data length:", len(data))
-            print("outputs shape 0:", outputs.shape[0])
+    # generate segmentation nifti
+    output_file         = os.path.join(binaries_path,"binaries.npy")
+    network_output_file = os.path.join(binaries_path,"network_output.npy")
 
-            # loop through elements in batch
-            for element in range(outputs.shape[0]):
-                # generate segmentation nifti
-                output_file = (
-                    binaries_path + str(data["exam"][element][:-7]) + ".nii.gz"
-                )
-                network_output_file = (
-                    netouts_path + str(data["exam"][element][:-7]) + "_out.nii.gz"
-                )
-
-                onehot_model_output = outputs[element]
-                create_nifti_seg(
-                    threshold=threshold,
-                    onehot_model_outputs_CHWD=onehot_model_output,
-                    output_file=output_file,
-                    network_output_file=network_output_file,
-                )
-
-                print("the time:", time.strftime("%Y-%m-%d_%H-%M-%S"))
+    create_nifti_seg(
+        threshold=threshold,
+        model_output=output_image,
+        output_file=output_file,
+        network_output_file=network_output_file,
+    )
 
     print("end:", time.strftime("%Y-%m-%d_%H-%M-%S"))
     return testing_session_path

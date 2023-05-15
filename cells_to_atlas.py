@@ -20,6 +20,7 @@ import os
 import tifffile
 from PIL import Image
 import pickle
+import glob
 
 
 def parseOntologyXML(ontologyInput=None):
@@ -110,20 +111,20 @@ def collapseToColorGroup(ElementsList, ontologyDF, excludeRegions=None):
         
     return groupTemplate  
 
-def mbrainaligner_atlas_to_ccf(cells,labelImage):
+def mbrainaligner_atlas_to_ccf(cells,LabelImage):
     
     #Flip X in mBrainAligner-Atlas space 
-    cells['x'] = 324-cells['x']
+    cells['x'] = 264-cells['x']
     #Flip Y in mBrainAligner-Atlas space
-    cells['y'] = 200 - cells['y']
+    cells['y'] = 160 - cells['y']
     
     #swap X and Y in mBrainaligner-atlas space
     cells = cells.rename(columns={'x' : 'y', 'y' : 'x', 'z' : 'z'})
 
     #subtract padding from mBrainAligner atlas values 
-    cells["x"] = cells["x"]-20
-    cells["y"] = cells["y"]-50
-    cells["z"] = cells["z"]-20
+    cells["x"] = cells["x"]
+    cells["y"] = cells["y"]
+    cells["z"] = cells["z"]
     
     #multiply by 2 to get to CCF3 dimensions of 25µm/voxel
     cells[["x","y","z"]] = cells[["x","y","z"]]*2
@@ -174,7 +175,7 @@ def create_heatmap (cells, LabelImage):
     heatmap = np.zeros(shape=LabelImage.shape)
     
     #filter out cells with background (add other similar terms to remove e.g. fiber tracts)
-    cells = cells[cells.acronym != 'bgr']
+    #cells = cells[cells.acronym != 'bgr']
     
     #determine the counts per coordinate
     counts = cells[['x','y','z']].value_counts()
@@ -238,7 +239,7 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
     
 #=== Main function body === 
 #if __name__ == '__main__': 
-def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_folder):
+def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_list,target_folder,hookoverall,hookfactor):
     
     #create a heatmap collection 
     heatmap_collection = {}
@@ -252,7 +253,7 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_fold
     
     #try to create target dir 
     if not os.path.exists(target_folder):
-        os.mkdir(target_folder)
+        os.makedirs(target_folder)
     
     #define an empty collections table 
     collection_region_table = ontology_df.copy()
@@ -261,16 +262,22 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_fold
     #create an empty collection df table 
     collection_collapsed_table = collapseToColorGroup(pd.DataFrame(columns=['id','number']+ontology_df.columns[2:].tolist()),ontology_df)
     
+    print(f"\nMouse_name_list:\n{mouse_name_list}\n")
+
     #iterate through files and save as excel 
-    for cellsfile in transformed_swc_files:
+    for mouse_i, mouse_name in enumerate(mouse_name_list):
         
-        #determine mouse name from file name 
-        mouse_name =  os.path.split(cellsfile)[1][:9] 
+        #Hook for interaction with FIJI plugin
+        print(f"HOOK:{hookoverall}:{hookfactor}:{mouse_i}:{len(mouse_name_list)}")
+        #determine cellsfile 
+        cellsfile = glob.glob(os.path.join(source_folder,mouse_name+"*"))
+        cellsfile = [x for x in cellsfile if mouse_name in x and ".csv" in x][0]
         
         #debug
-        print(mouse_name)
+        print(f"\nMouse name:\n{mouse_name}")
         
         #load xyz coords
+        print(f"Cellsfile:\n{cellsfile}\n")
         cells = pd.read_csv(cellsfile,sep=' ',usecols=["n","x","y","z"])
         
         #optional: rename "n" to "connected_component_id" for connected component analysis
@@ -291,12 +298,12 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_fold
         
         #create collapsed table and write to csv
         color_region_table = collapseToColorGroup(uniquetable, ontology_df)
-        color_region_table.to_csv(os.path.join(target_folder,"region_collapsed" + mouse_name + ".csv"))
+        color_region_table.to_csv(os.path.join(target_folder,"region_collapsed_" + mouse_name + ".csv"))
         collection_collapsed_table = collection_collapsed_table.merge(color_region_table['BlobCount'].rename(mouse_name),left_index=True,right_index=True,how='left')
         
         #create heatmap and write to tif
         heatmap = create_heatmap(cells,LabelImage)
-        tifffile.imwrite(os.path.join(target_folder,"heatmap_" + mouse_name + ".tif"),heatmap.astype("float"),compress=True)
+        tifffile.imwrite(os.path.join(target_folder,"heatmap_" + mouse_name + ".tif"),heatmap.astype("float"),compression='lzw')
         #add to heatmap collection
         heatmap_collection[mouse_name] = heatmap
     
@@ -317,6 +324,8 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_fold
     pickle.dump(heatmap_collection,open(os.path.join(target_folder,'heatmap_collection.pickledump'),'wb'))
     ####load again with the following command. note the 'rb'at the end. 
     ###blub = pickle.load(open('/path/to/heatmap_collection.pickledump','rb'))
+    
+    '''
     #define lists 
     mouse_list = list(heatmap_collection.keys())
     c26_list = mouse_list[0:6]
@@ -326,12 +335,12 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,cell_file_list,target_fold
     
     for group in group_list:
         #create empty heatmap
-        heatmap_avg = np.zeros(shape=heatmap.shape)
+        heatmap_avg = np.zeros(shape=LabelImage.shape)
         for mouse in group:
             heatmap_avg = np.add(heatmap_avg,heatmap_collection[mouse])
         #divide by number of mice to normalize 
         heatmap_avg = heatmap_avg/len(group)
         heatmap_avg = heatmap_avg.astype('float32')
         #save heatmap 
-        tifffile.imwrite(os.path.join(target_folder,"heatmap_average_" + group[0] + ".tif"),heatmap_avg.astype("float"),compress=True)
-    
+        tifffile.imwrite(os.path.join(target_folder,"heatmap_average_" + group[0] + ".tif"),heatmap_avg.astype("float"),compression='lzw')
+    '''

@@ -5,7 +5,9 @@ import pickle
 import cv2
 import numpy as np
 import pandas as pd
+import shutil
 from filehandling import read_nifti, write_nifti
+from inference.inference import create_empty_memmap
 from skimage.morphology import binary_dilation
 from skimage.draw import ellipsoid
 
@@ -105,7 +107,7 @@ def get_color_set(df):
     """
     return sorted(list(df["color-hex-triplet"].unique()))
 
-def blob_highlighter(settings):
+def blob_highlighter(settings, brain_item,stack_shape):
     """Color blobs by their corresponding atlas region
     """
 
@@ -125,142 +127,152 @@ def blob_highlighter(settings):
     if not os.path.exists(path_cache):
         os.mkdir(path_cache)
 
-    # TODO Highlight matched areas based on csv
-    brain_list = [
-                    ("PBS_3418",""),("PBS_3402",""),("PBS_3400",""),\
-                    ("c26_3409",""),\
-                    ("nc26_3413",""),("nc26_3423","")
-                ]
+    
     RGB = False
 
     draw_ellipsoid = True
 
-    for brain_item in brain_list:
-        brain = brain_item[0]
-        highlight_area = brain_item[1]
-        dilation_kernel = 4
-        if highlight_area != "":
-            print(f"{datetime.datetime.now()} Highlighting {highlight_area} in {brain}")
-        else:
-            print(f"{datetime.datetime.now()} Highlighting everything in {brain}")
+    #TODO check if it goes through all brains??
+    brain = brain_item[0]
+    highlight_area = brain_item[1]
+    dilation_kernel = 4
+    if highlight_area != "":
+        print(f"{datetime.datetime.now()} Highlighting {highlight_area} in {brain}")
+    else:
+        print(f"{datetime.datetime.now()} Highlighting everything in {brain}")
 
-        path_brain_binary       = path_binary + brain + ".nii.gz"
-        path_brain_size_csv           = path_size_csv + brain + ".csv"
-        path_brain_cell_csv     = path_cell_csv + brain + ".csv"
+    path_brain_binary       = path_binary   + [x for x in os.listdir(path_binary) if brain in x][0] + "/binary_segmentations/binaries.npy"
+    path_brain_size_csv     = path_size_csv + [x for x in os.listdir(path_size_csv) if brain in x][0]
+    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if brain in x][0]
+    print(path_brain_size_csv)
 
-        # Load csvs
-        print(f"{datetime.datetime.now()} : Loading csv")
-        size_csv    = pd.read_csv(path_brain_size_csv).set_index("Blob")
-        cell_csv    = pd.read_csv(path_brain_cell_csv).set_index("connected_component_id")
+    # Load csvs
+    print(f"{datetime.datetime.now()} : Loading csv")
+    size_csv    = pd.read_csv(path_brain_size_csv).set_index("Blob")
+    cell_csv    = pd.read_csv(path_brain_cell_csv,sep=" ",index_col="n")
 
-        # Load brain
-        print(f"{datetime.datetime.now()} : Loading brain")
-        brain_nifti         = read_nifti(path_brain_binary)
-        brain_nifti         = np.swapaxes(brain_nifti, 0, -1)
-
-        # CC3D
-        print(f"{datetime.datetime.now()} : CC3D")
-        brain_exists = check_brain(path_cache, brain)
-        if brain_exists != -1:
-            print(f"{datetime.datetime.now()} : CC3D exists, reading...")
-            labels, N = read_nifti(f"{path_cache}{brain_exists}"), int(brain_exists.split("_")[2])
-        else:
-            print(f"{datetime.datetime.now()} : Calculating CC3D")
-            labels, N   = cc3d.connected_components(brain_nifti, return_N=True)
-            print(f"{datetime.datetime.now()} : Writing cc3d nifti")
-            write_nifti(path_cache + f"{brain}_{N}_cc3d.nii", labels)
-
-        # Make np zero same size as brain
-        print(f"{datetime.datetime.now()} : Creating empty volumes")
-        if RGB:
-            cell_nifti      = np.zeros_like(labels, dtype = np.uint8)
-            cell_nifti      = np.stack((cell_nifti, cell_nifti, cell_nifti))
-            cell_nifti      = np.swapaxes(cell_nifti, 0, -1)
-            cell_nifti      = np.swapaxes(cell_nifti, 0, 1)
-            cell_nifti      = np.swapaxes(cell_nifti, 1, 2)
-        else:
-            cell_nifti      = np.zeros_like(labels, dtype = np.uint8)
+    # Load binarized outputs
+    print(f"{datetime.datetime.now()} : Loading brain")
+    #brain_nifti         = read_nifti(path_brain_binary)
+    #brain_nifti         = np.swapaxes(brain_nifti, 0, -1)
+    #load npy
+    brain_nifti = dataset_on_disk = np.memmap(path_brain_binary,dtype=np.uint8,mode='r+',shape=stack_shape[1:])
+    brain_nifti = brain_nifti[0,:,:,:]
 
 
+    # CC3D
+    print(f"{datetime.datetime.now()} : CC3D")
+    brain_exists = check_brain(path_cache, brain)
+    if brain_exists != -1:
+        print(f"{datetime.datetime.now()} : CC3D exists, reading...")
+        #labels, N = read_nifti(f"{path_cache}{brain_exists}"), int(brain_exists.split("_")[-2])
+        labels, N = np.load(f"{path_cache}{brain_exists}"), int(brain_exists.split("_")[-2])
+    else:
+        print(f"{datetime.datetime.now()} : Calculating CC3D")
+        #labels = create_empty_memmap(path_cache + f"{brain}_{N}_cc3d.npy", brain_nifti.shape,dtype=np.uint8,return_torch=False)
+        labels, N   = cc3d.connected_components(brain_nifti, return_N=True)
+        print(f"{datetime.datetime.now()} : Writing cc3d nifti")
+        #write_nifti(path_cache + f"{brain}_{N}_cc3d.nii", labels)
+        np.save(path_cache + f"{brain}_{N}_cc3d.npy", labels)
+        
 
-        if not os.path.exists(f"{path_cache}{brain}_statistics.pickledump"):
-            print(f"{datetime.datetime.now()} : Calculating statistics")
-            stats = cc3d.statistics(labels)
-            with open(f"{path_cache}{brain}_statistics.pickledump", "xb") as file:
-                pickle.dump(stats, file)
-        else:
-            print(f"{datetime.datetime.now()} : Reading statistics")
-            with open(f"{path_cache}{brain}_statistics.pickledump", "rb") as file:
-                stats = pickle.load(file)
+    # Make np zero same size as brain
+    print(f"{datetime.datetime.now()} : Creating empty volumes")
+    if RGB:
+        #cell_nifti      = np.zeros_like(labels, dtype = np.uint8)
+        #cell_nifti      = np.stack((cell_nifti, cell_nifti, cell_nifti))
+        #cell_nifti      = np.swapaxes(cell_nifti, 0, -1)
+        #cell_nifti      = np.swapaxes(cell_nifti, 0, 1)
+        #cell_nifti      = np.swapaxes(cell_nifti, 1, 2)
+        cell_nifti_path  = path_out + f"{brain}_RGB.npy"
+        cell_nifti       = create_empty_memmap(cell_nifti_path, shape=(*brain_nifti.shape,3),dtype=np.uint8,return_torch=False)
+    else:
+        #cell_nifti      = np.zeros_like(labels, dtype = np.uint8)
+        cell_nifti_path  = path_out + f"{brain}_visualization.npy"
+        cell_nifti       = create_empty_memmap(cell_nifti_path, shape=brain_nifti.shape,dtype=np.uint8,return_torch=False)
 
-        key_error_count = 0
-        print(f"{datetime.datetime.now()} : Coloring")
-        color_set = get_color_set(cell_csv)
-        print(f"Len colorset {len(color_set)}")
-        with open(f"{path_cache}{brain}_color_set.txt", "w") as file:
-            file.write(str(color_set))
+    if not os.path.exists(f"{path_cache}{brain}_statistics.pickledump"):
+        print(f"{datetime.datetime.now()} : Calculating statistics")
+        stats = cc3d.statistics(labels)
+        with open(f"{path_cache}{brain}_statistics.pickledump", "xb") as file:
+            pickle.dump(stats, file)
+    else:
+        print(f"{datetime.datetime.now()} : Reading statistics")
+        with open(f"{path_cache}{brain}_statistics.pickledump", "rb") as file:
+            stats = pickle.load(file)
+
+    key_error_count = 0
+    print(f"{datetime.datetime.now()} : Coloring")
+    color_set = get_color_set(cell_csv)
+    print(f"Len colorset {len(color_set)}")
+    with open(f"{path_cache}{brain}_color_set.txt", "w") as file:
+        file.write(str(color_set))
 
 
-        print(f"Cell nifti {cell_nifti.shape}")
-        print(f"labels {labels.shape}")
-        for label in range(1,N):
-            start = datetime.datetime.now()
-            if label > 0:
-                try:
-                    size    = size_csv.loc[label]["Size"]
-                    location= size_csv.loc[label]["Coords"]
-                    if size < 200:
-                        if RGB:
-                            color_cell = [-1, -1, -1]
-                            color_cell[0] = int(cell_csv.loc[label]["red"])
-                            color_cell[1] = int(cell_csv.loc[label]["green"])
-                            color_cell[2] = int(cell_csv.loc[label]["blue"])
-                            cell_nifti = color_bb_rgb(cell_nifti, labels, stats, label, color_cell)
-                        else:
-                            color_cell = color_set.index(cell_csv.loc[label]["color-hex-triplet"])
-                            if highlight_area != "":
-                                if highlight_area == cell_csv.loc[label]["color-hex-triplet"]:
-                                    if draw_ellipsoid:
-                                        cell_nifti = color_sphere(cell_nifti, labels, stats, label, color_cell)
-                                    else:
-                                        cell_nifti = color_bb(cell_nifti, labels, stats, label, color_cell)
-                            else:
+    print(f"Cell nifti {cell_nifti.shape}")
+    print(f"labels {labels.shape}")
+    print(cell_csv)
+    for label in range(1,N):
+        start = datetime.datetime.now()
+        if label > 0 and label in cell_csv.index:
+            try:
+                size    = size_csv.loc[label]["Size"]
+                location= size_csv.loc[label]["Coords"]
+                if size < 200:
+                    if RGB:
+                        color_cell = [-1, -1, -1]
+                        color_cell[0] = int(cell_csv.loc[label]["red"])
+                        color_cell[1] = int(cell_csv.loc[label]["green"])
+                        color_cell[2] = int(cell_csv.loc[label]["blue"])
+                        cell_nifti = color_bb_rgb(cell_nifti, labels, stats, label, color_cell)
+                    else:
+                        color_cell = color_set.index(cell_csv.loc[label]["color-hex-triplet"])
+                        if highlight_area != "":
+                            if highlight_area == cell_csv.loc[label]["color-hex-triplet"]:
                                 if draw_ellipsoid:
                                     cell_nifti = color_sphere(cell_nifti, labels, stats, label, color_cell)
                                 else:
                                     cell_nifti = color_bb(cell_nifti, labels, stats, label, color_cell)
-                except KeyError as ke:
-                    # if "key_error_count" in locals():
-                    key_error_count += 1
-                    if label == 1:
-                        print("No first label found - Big oopsie! Loc vs iLoc?")
-                        exit()
-                    # print(f"\nKey Error {ke} Count {key_error_count}",end="\r",flush=True)
-                except TypeError as te:
-                    print(f"\nType Error {te} {label}")
-                except ValueError as ve:
-                    print(f"\nValue Error {ve} {label}")
-                except IndexError as ie:
-                    print(f"\nIndex Error {ie} {label}")
+                        else:
+                            if draw_ellipsoid:
+                                cell_nifti = color_sphere(cell_nifti, labels, stats, label, color_cell)
+                            else:
+                                cell_nifti = color_bb(cell_nifti, labels, stats, label, color_cell)
+            # except KeyError as ke:
+                # if "key_error_count" in locals():
+                # key_error_count += 1
+                # if label == 1:
+                    # print(f"No first label found - Big oopsie! Loc vs iLoc?\nKeyError {ke}")
+                    # exit()
+                # print(f"\nKey Error {ke} Count {key_error_count}",end="\r",flush=True)
+            except TypeError as te:
+                print(f"\nType Error {te} {label}")
+            except ValueError as ve:
+                print(f"\nValue Error {ve} {label}")
+            except IndexError as ie:
+                print(f"\nIndex Error {ie} {label}")
 
-            if label % 50 == 0:
-                d = datetime.datetime.now()
-                print(f"{label} / {N} | KeyErrors: {key_error_count} ETA {((N - label) * (d-start).total_seconds())/60:.2f} Minutes remaining",end="\r",flush=True)
-        cell_nifti = np.swapaxes(cell_nifti, 0, 2)
+        if label % 50 == 0:
+            d = datetime.datetime.now()
+            print(f"{label} / {N} | KeyErrors: {key_error_count} ETA {((N - label) * (d-start).total_seconds())/60:.2f} Minutes remaining",end="\r",flush=True)
+    #cell_nifti = np.swapaxes(cell_nifti, 0, 2)
 
-        print(f"{datetime.datetime.now()} : Writing cell nifti {np.amin(cell_nifti)} {np.amax(cell_nifti)}")
-        output_name = f"{path_out}{brain}"
-        if RGB:
-            output_name += "_rgb"
-        else:
-            if dilation_kernel > 0:
-                cell_nifti = fast_dilate(cell_nifti, dilation_kernel)
-                output_name += "_dilated"
-            output_name += "_singlecolor"
-            if highlight_area != "":
-                output_name += f"_{highlight_area}"
+    print(f"{datetime.datetime.now()} : Writing cell nifti {np.amin(cell_nifti)} {np.amax(cell_nifti)}")
+    output_name = f"{path_out}{brain}"
+    if RGB:
+        output_name += "_rgb"
+    else:
+        if dilation_kernel > 0:
+            cell_nifti = fast_dilate(cell_nifti, dilation_kernel)
+            output_name += "_dilated"
+        output_name += "_singlecolor"
+        if highlight_area != "":
+            output_name += f"_{highlight_area}"
 
-        if draw_ellipsoid:
-            output_name += "_ellipsoid"
-        output_name += ".nii"
-        write_nifti(output_name, cell_nifti)
+    if draw_ellipsoid:
+        output_name += "_ellipsoid"
+    output_name += ".npy"
+    #write_nifti(output_name, cell_nifti)
+    cell_nifti.flush()
+    shutil.copy(cell_nifti_path, output_name)
+    
