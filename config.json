@@ -54,7 +54,7 @@
         "POSTPROCESSING":true,
         "ATLAS_ALIGNMENT":true,
         "REGION_ASSIGNMENT":true,
-        "VISUALIZATION":false,
+        "VISUALIZATION":true,
         "SAVE_MASK_OUTPUT":true,
         "SAVE_NETWORK_OUTPUT":true,
         "SAVE_POSTPROCESSING_OUTPUT":true,
