@@ -79,9 +79,9 @@ def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True)
     except:
         pass
     #save empty np array on disk 
-    np.save(file_location,np.zeros(shape=shape, dtype=np.float16))
+    np.save(file_location,np.zeros(shape=shape, dtype=dtype))
     #now re-read from disk as memmap (saving RAM)
-    empty_memmap = np.memmap(file_location,mode='w+',dtype=np.float16,shape=shape)
+    empty_memmap = np.memmap(file_location,mode='w+',dtype=dtype,shape=shape)
     if return_torch:
         empty_memmap = torch.as_tensor(empty_memmap,dtype=torch.float16)
     return empty_memmap
