@@ -114,8 +114,6 @@ if __name__ == "__main__":
         print(f"Blob detection for {mice}")
         hookoverall += 1
 
-        hookoverall += 1
-
         for mouse_i, mouse in enumerate(mice):
             #Hook for communicating with Fiji plugin
             print(f"HOOK:{hookoverall}:{hookfactor}:{mouse_i}:{len(mice)}")
