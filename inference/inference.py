@@ -213,8 +213,8 @@ def run_inference(
     os.makedirs(os.path.join(output_folder, comment), exist_ok=True)
 
     #create empty output tensors (memmapped npy underneath) 
-    output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape)
-    count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape)
+    output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
+    count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
     
     #if already part-way done, load results from disk:
     #output_image = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"inference_output.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
