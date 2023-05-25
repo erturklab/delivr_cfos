@@ -25,10 +25,9 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 3. Set the location of your raw data and ilastik installation path in `config.json`
 4. Download and install mBrainAligner https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner (Note that the pre-compiled swc registration only runs on Windows). Set the path in the config.json under `mBrainAligner location`
 5. Download and install Ilastik (latest beta) https://www.ilastik.org/download.html. Set the path in the config.json under `ilastik_location`. 
-6. Download the Allen Brain Atlas CCF3 version we used, and place it in the `/models/` folder. Use the following dropbox link: https://www.dropbox.com/s/inxmi2qv3sgzz50/CCF3_P56_annotation.tif?dl=0 
-7. (Optional: Download the test raw data from this dropbox link (50 Gb total) and place the tiff files into `/data/raw/`: https://www.dropbox.com/sh/k3y7h0yovrsoz01/AABVodOqGKMdswRbV6DGhdUBa?dl=0 )
-8. (If required, download the intermediate results and move them to into `/data/`)
-9. Run `python __main__.py` in the terminal
+6. (Optional: Download the test raw data from this dropbox link (50 Gb total) and extract the tiff files into `/data/raw/`: https://www.dropbox.com/sh/ylm4hpk90uts74l/AAAJFlvLI0U-VGSyUmC_9gcoa?dl=0)
+7. (If required, download the intermediate results and move them to into `/data/`)
+8. Run `python __main__.py` in the terminal
 
 ### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
