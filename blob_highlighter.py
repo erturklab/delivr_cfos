@@ -144,7 +144,7 @@ def blob_highlighter(settings, brain_item,stack_shape):
 
     path_brain_binary       = path_binary   + [x for x in os.listdir(path_binary) if brain in x][0] + "/binary_segmentations/binaries.npy"
     path_brain_size_csv     = path_size_csv + [x for x in os.listdir(path_size_csv) if brain in x][0]
-    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if brain in x and "cells" in x][0]
+    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if brain in x][0]
     print(path_brain_cell_csv)
 
     # Load csvs
