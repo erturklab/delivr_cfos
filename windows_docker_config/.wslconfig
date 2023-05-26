@@ -2,10 +2,10 @@
 [wsl2]
 
 # Limits VM memory to use no more than 4 GB, this can be set as whole numbers using GB or MB
-memory=28GB 
+memory=200GB 
 
 # Sets the VM to use two virtual processors
-processors=6
+processors=12
 
 # Specify a custom Linux kernel to use with your installed distros. The default kernel used can be found at https://github.com/microsoft/WSL2-Linux-Kernel
 #kernel=C:\\temp\\myCustomKernel
