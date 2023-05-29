@@ -86,28 +86,6 @@ def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True)
         empty_memmap = torch.as_tensor(empty_memmap,dtype=torch.float16)
     return empty_memmap
 
-'''
-def create_noised_memmap(file_location, shape, input_dataset):
-    #create a noised copy of the input image as memmap on disk
-    #first make sure previous temp files are erased 
-    try:                
-        os.remove (file_location)
-    except:
-        pass
-    #make a copy of the input on disk 
-    np.save(file_location,input_dataset)
-    #now load memmapped version 
-    memmapped_input = np.memmap(file_location,mode='w+',dtype=np.float16,shape=shape)
-    #create a random offset for the 3 image dimensions 
-    #TODO: This is single-thread and unbearably slow, need to fix 
-    random_result = MultithreadedRNG(n = np.prod(single_slice_load[0,0,:,:,:].shape), seed = 12345 ).values.reshape(single_slice_load[0,0,:,:,:].shape) 
-
-    memmapped_input = torch.as_tensor(memmapped_input,dtype=torch.float16)
-    #now create noised version 
-    #memmapped_input = RandGaussianNoise(prob=1.0, std=0.001)(memmapped_input.type(torch.float16))
-    return memmapped_input
-'''
-    
 
 # GO
 def run_inference(
@@ -248,27 +226,26 @@ def run_inference(
 
         # test time augmentations
         if tta == True:
-            n = 1.0
+            #n = 1.0
             for _ in range(4):
                 #print("creating noised image for test-time augmentation")
-                #create an empty count map again
-                                
+                
                 #re-run inferer while creating noised data on the fly
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True)
-                n = n + 1.0
+                #n = n + 1.0
 
-                #create an empty count map again
                 #flip Z 
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 2)
-                n = n + 1.0
+                #n = n + 1.0
 
                 #create an empty count map again
-                #flip Y
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
-                n = n + 1.0
+                #n = n + 1.0
 
             #average outputs at the end of tta
-            output_image = output_image / n
+            #output_image = output_image / n
+    #average output of all runs (even if just 1, count_map contains all data)
+    output_image = output_image / count_map    
 
     #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))

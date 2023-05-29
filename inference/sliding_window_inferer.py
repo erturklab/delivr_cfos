@@ -199,35 +199,42 @@ def sliding_window_inference(
         
         #concatenate all win_slices to a single batch (influenced by sw_batch_size, set according to on the graphics card VRAM)
         window_data = torch.cat(data_to_load,dim=0)
-        #cast as 32-bit float and send to graphics card 
-        window_data = window_data.type(torch.float32)     
-        window_data = window_data.cuda()
-        window_data.to(sw_device)
 
-        #add noise if running with test-time augmentation
-        if tta == True:
-            #window_data = RandGaussianNoise(prob=1.0, std=0.001)(window_data)
-            window_data[0,0,:,:,:] = window_data[0,0,:,:,:] + (0.001**0.5)*torch.randn(size=window_data[0,0,:,:,:].shape,out=window_data[0,0,:,:,:],dtype=torch.float32,device=sw_device)
+        #skip computing if this tile is background (as filtered and set to 0 by the mask_detection step)
+        if window_data.max() == 0.0:
+            seg_prob = window_data
 
-        # if the data needs to be flipped, do this here (flip_dim: 2 = z, 3 = y, 4 = x) 
-        if flip_dim is not None:
-            window_data = torch.flip(window_data,dims=[flip_dim])
+        #if this tile contains data, process it: 
+        else: 
+            #cast as 32-bit float and send to graphics card 
+            window_data = window_data.type(torch.float32)     
+            window_data = window_data.cuda()
+            window_data.to(sw_device)
 
-        #run the actual prediction 
-        seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
-        
-        if SIGMOID:
-            seg_prob = torch.sigmoid(seg_prob)
+            #add noise if running with test-time augmentation
+            if tta == True:
+                #window_data = RandGaussianNoise(prob=1.0, std=0.001)(window_data)
+                window_data[0,0,:,:,:] = window_data[0,0,:,:,:] + (0.001**0.5)*torch.randn(size=window_data[0,0,:,:,:].shape,out=window_data[0,0,:,:,:],dtype=torch.float32,device=sw_device)
 
-        # flip data back if previously flipped 
-        if flip_dim is not None:
-            seg_prob = torch.flip(seg_prob,dims=[flip_dim])
-        
-        #send to cpu
-        #seg_prob.to(device)
+            # if the data needs to be flipped, do this here (flip_dim: 2 = z, 3 = y, 4 = x) 
+            if flip_dim is not None:
+                window_data = torch.flip(window_data,dims=[flip_dim])
 
-        #cast the results back to float16 
-        seg_prob = seg_prob.to(torch.float16)
+            #run the actual prediction 
+            seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
+            
+            if SIGMOID:
+                seg_prob = torch.sigmoid(seg_prob)
+
+            # flip data back if previously flipped 
+            if flip_dim is not None:
+                seg_prob = torch.flip(seg_prob,dims=[flip_dim])
+            
+            #send to cpu
+            #seg_prob.to(device)
+
+            #cast the results back to float16 
+            seg_prob = seg_prob.to(torch.float16)
         
         # store the result in the proper location of the full output. Apply weights from importance map.
         for idx, original_idx in zip(slice_range, unravel_slice):
@@ -241,8 +248,8 @@ def sliding_window_inference(
             output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
             count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
 
-    # account for any overlapping sections
-    output_image = output_image / count_map
+    # account for any overlapping sections (this should happen in inference.py at the end of all inferences)
+    #output_image = output_image / count_map 
     
 
     #generate slice placement list (I think)
