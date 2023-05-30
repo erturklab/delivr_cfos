@@ -236,17 +236,17 @@ def sliding_window_inference(
             #cast the results back to float16 
             seg_prob = seg_prob.to(torch.float16)
         
-        # store the result in the proper location of the full output. Apply weights from importance map.
-        for idx, original_idx in zip(slice_range, unravel_slice):
-            #print("original_idx: ",original_idx)
-            #print("idx: ", idx)
-            #print("unravel_slice: ",unravel_slice)            
-            #print("output_image[original_idx]: ",output_image[original_idx])
-            #print("importance_map shape: ",importance_map.shape)
-            #print("seg_prob shape: ",seg_prob.shape)
-            #print("current seg_prob shape: ",seg_prob[idx - slice_g].shape)
-            output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
-            count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
+            # store the result in the proper location of the full output. Apply weights from importance map. (skip this if it is all background) 
+            for idx, original_idx in zip(slice_range, unravel_slice):
+                #print("original_idx: ",original_idx)
+                #print("idx: ", idx)
+                #print("unravel_slice: ",unravel_slice)            
+                #print("output_image[original_idx]: ",output_image[original_idx])
+                #print("importance_map shape: ",importance_map.shape)
+                #print("seg_prob shape: ",seg_prob.shape)
+                #print("current seg_prob shape: ",seg_prob[idx - slice_g].shape)
+                output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
+                count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
 
     # account for any overlapping sections (this should happen in inference.py at the end of all inferences)
     #output_image = output_image / count_map 
