@@ -191,7 +191,7 @@ def sliding_window_inference(
             #cast as signed 32-bit integer for conversion to 32-bit float
             single_slice_load = single_slice_load.astype(np.int32)
             #cast to tensor 
-            single_slice_load = torch.as_tensor(single_slice_load,dtype=torch.float32)
+            single_slice_load = torch.as_tensor(single_slice_load,dtype=torch.int32)
             #add extra dimensions at beginning
             single_slice_load = single_slice_load[None,:,:,:]
             #single_slice_load = single_slice_load[None,:,:,:,:]
