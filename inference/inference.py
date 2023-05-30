@@ -226,30 +226,42 @@ def run_inference(
 
         # test time augmentations
         if tta == True:
-            #n = 1.0
             for _ in range(4):
-                #print("creating noised image for test-time augmentation")
-                
                 #re-run inferer while creating noised data on the fly
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True)
-                #n = n + 1.0
-
+                
                 #flip Z 
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 2)
-                #n = n + 1.0
-
+                
                 #create an empty count map again
                 output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
-                #n = n + 1.0
-
-            #average outputs at the end of tta
-            #output_image = output_image / n
+                
     #average output of all runs (even if just 1, count_map contains all data)
-    output_image = output_image / count_map    
+    #do it in memory if enough memory is present 
+    #output_image = output_image / count_map    
+    
+    #do averaging block-wise as arrays from disk - runs with RAM < 2x input image as well 
+    #construct iterator over output_image array. Tweak buffer size for larger blocks
+    ouput_iterator = np.lib.Arrayterator(output_image[0,0,:,:,:], 1000**3)
+    #construct indices for placing the resulting values back
+    idx = [0,0,0]
+    old_idx = idx
+    #iterate through output_image
+    for subarr in ouput_iterator:
+        #generate indices for placing the output in the correct array locations
+        idx = list(subarr.shape)
+        old_idx, idx = update_idx(old_idx,idx,list(ouput_iterator.shape))
+        #divide output image by count_map at same location 
+        subarr = subarr / count_map[0,0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]]
+        #place back in output_image
+        output_image[0,0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = subarr
+        #update index 
+        old_idx = idx
+    #ensure updated arrays are written to disk 
+    output_image.flush()
 
     #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
-
     # generate segmentation nifti
     output_file         = os.path.join(binaries_path,"binaries.npy")
     network_output_file = os.path.join(binaries_path,"network_output.npy")
