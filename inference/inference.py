@@ -258,7 +258,7 @@ def run_inference(
         #update index 
         old_idx = idx
     #ensure updated arrays are written to disk 
-    output_image.flush()
+    #output_image.flush()
 
     #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
