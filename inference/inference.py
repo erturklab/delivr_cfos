@@ -17,6 +17,7 @@ from monai.networks.nets import BasicUNet
 from .sliding_window_inferer import SlidingWindowInferer
 
 from monai.transforms import RandGaussianNoise
+from scipy.ndimage import binary_erosion
 
 def update_idx (old_idx,new_idx,total_size):
     #update both old_idx and new_idx, taking into account which dimensions could change
@@ -33,6 +34,7 @@ def create_nifti_seg(
     model_output,
     output_file,
     network_output_file,
+    dataset
 ):
     
     #save activated network output as npy, then re-read
@@ -43,6 +45,8 @@ def create_nifti_seg(
     np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
     binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
     
+    #note that the input_image is only used for re-generating the mask (for re-masking the binaries, this reduces edge effects at the edge of the mask)
+
     #construct iterator over output_image array. Tweak buffer size for larger blocks
     img_iterator = np.lib.Arrayterator(model_output[0,0,:,:,:], 1000**3)
     
@@ -60,8 +64,18 @@ def create_nifti_seg(
         sigmoid = (subarr[:, :, :].sigmoid()).detach().cpu().numpy()  
         #export to activated_outputs array
         activated_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
-        #threshold and output export to binarized_outputs array
+        #threshold for binarization 
         thresholded_sigmoid = sigmoid >= threshold
+        #re-generate mask, erode it, and re-mask the binaries 
+        mask = dataset[0,0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]].copy()
+        #binarize mask        
+        mask[mask > 0] = 1
+        mask = mask.astype(np.uint8)
+        #erode mask
+        mask = binary_erosion(mask,iterations=30,border_value=1).astype(np.uint8)
+        #re-mask binaries 
+        thresholded_sigmoid = thresholded_sigmoid.astype(np.uint8) * mask
+        #export to binarized_output array
         binarized_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = thresholded_sigmoid.astype(np.uint8)
         #update index 
         old_idx = idx
@@ -194,6 +208,10 @@ def run_inference(
     output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
     count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
     
+    print("dataset_on_disk shape",dataset_on_disk.shape)
+    print("output_image shape",output_image.shape)
+    print("count_map shape",count_map.shape)
+
     #if already part-way done, load results from disk:
     #output_image = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"inference_output.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
     #count_map = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"count_map.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
@@ -220,26 +238,23 @@ def run_inference(
         model.eval()
         #run sliding window inference 
         
-        output_image = inferer(dataset, model, output_image = output_image, count_map = count_map)
+        inferer(dataset, model, output_image = output_image, count_map = count_map)
         #print("first inference finished")           
-         
 
         # test time augmentations
         if tta == True:
             for _ in range(4):
                 #re-run inferer while creating noised data on the fly
-                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True)
+                inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True)
                 
                 #flip Z 
-                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 2)
+                inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 2)
+
                 
                 #create an empty count map again
-                output_image = inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
+                inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
+
                 
-    #average output of all runs (even if just 1, count_map contains all data)
-    #do it in memory if enough memory is present 
-    #output_image = output_image / count_map    
-    
     #do averaging block-wise as arrays from disk - runs with RAM < 2x input image as well 
     #construct iterator over output_image array. Tweak buffer size for larger blocks
     ouput_iterator = np.lib.Arrayterator(output_image[0,0,:,:,:], 1000**3)
@@ -257,12 +272,10 @@ def run_inference(
         output_image[0,0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = subarr
         #update index 
         old_idx = idx
-    #ensure updated arrays are written to disk 
-    #output_image.flush()
-
+    
     #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
-    # generate segmentation nifti
+    # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")
     network_output_file = os.path.join(binaries_path,"network_output.npy")
 
@@ -271,6 +284,7 @@ def run_inference(
         model_output=output_image,
         output_file=output_file,
         network_output_file=network_output_file,
+        dataset=dataset
     )
 
     print("end:", time.strftime("%Y-%m-%d_%H-%M-%S"))
