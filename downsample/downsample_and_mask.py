@@ -20,6 +20,7 @@ from skimage.util import img_as_ubyte
 from scipy.ndimage import zoom
 from subprocess import Popen
 from collections import deque
+from subprocess import DEVNULL
 
 
 def write_nifti(path,volume):
@@ -100,7 +101,7 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     
     #run command
     # res = os.system(cmd)
-    res = Popen(cmd, shell=True).wait()
+    res = Popen(cmd, shell=True,stdout=DEVNULL,stderr=DEVNULL).wait()
     
     #assemble the Ilastik output to a stack 
     ilastik_output_list = sorted(glob.glob(os.path.join(results_folder,'ventricles_zplanes','*.tif')))
