@@ -112,15 +112,15 @@ def blob_highlighter(settings, brain_item,stack_shape):
     """Color blobs by their corresponding atlas region
     """
 
-    path_binary         = settings["visualization"]["input_prediction_location"]
+    path_binary         = settings["visualization"]["input_prediction_location"] #"/data/output/02_blob_detection/output/"
     if settings["visualization"]["input_size_location"] == "":
         settings["visualization"]["input_size_location"] = settings["postprocessing"]["output_location"]
-    path_size_csv       = settings["visualization"]["input_size_location"]
+    path_size_csv       = settings["visualization"]["input_size_location"] #"/data/output/03_postprocessing/output/",
 
-    path_cell_csv       = settings["visualization"]["input_csv_location"]
+    path_cell_csv       = settings["visualization"]["input_csv_location"] #"/data/output/04_atlas_alignment/collection/", should be "/data/output/05_region_assignment/",
 
-    path_out            = settings["visualization"]["output_location"]
-    path_cache          = settings["visualization"]["cache_location"]
+    path_out            = settings["visualization"]["output_location"] #"/data/output/06_visualization/cache/"
+    path_cache          = settings["visualization"]["cache_location"] #"/data/output/06_visualization/output/"
 
     if not os.path.exists(path_out):
         os.mkdir(path_out)
@@ -129,12 +129,12 @@ def blob_highlighter(settings, brain_item,stack_shape):
         os.mkdir(path_cache)
 
     
-    RGB = False
+    RGB = True
 
     draw_ellipsoid = True
 
     #TODO check if it goes through all brains??
-    brain = brain_item[0]
+    brain = brain_item[0] #likely to be from listitems "/data/output/02_blob_detection/output/"
     highlight_area = brain_item[1]
     dilation_kernel = 4
     if highlight_area != "":
@@ -143,14 +143,16 @@ def blob_highlighter(settings, brain_item,stack_shape):
         print(f"{datetime.datetime.now()} Highlighting everything in {brain}")
 
     path_brain_binary       = path_binary   + [x for x in os.listdir(path_binary) if brain in x][0] + "/binary_segmentations/binaries.npy"
-    path_brain_size_csv     = path_size_csv + [x for x in os.listdir(path_size_csv) if brain in x][0]
-    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if brain in x][0]
+    path_brain_size_csv     = path_size_csv + [x for x in os.listdir(path_size_csv) if brain in x and ".csv" in x][0] 
+    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if "cells_" + brain in x and ".csv" in x][0]
     print(path_brain_cell_csv)
 
     # Load csvs
     print(f"{datetime.datetime.now()} : Loading csv")
     size_csv    = pd.read_csv(path_brain_size_csv,index_col="Blob")
     cell_csv    = pd.read_csv(path_brain_cell_csv,index_col=0)
+    #filter out background-annotated cells:
+    cell_csv = cell_csv.loc[cell_csv["acronym"] != "bgr"]
 
     # Load binarized outputs
     print(f"{datetime.datetime.now()} : Loading brain")
