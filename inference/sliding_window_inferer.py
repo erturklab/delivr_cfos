@@ -105,8 +105,6 @@ def sliding_window_inference(
     # Note: all input images must have the same image size and batch size
     image_size = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
-    
-            image_size = tuple(int(np.floor(image_size[i] / roi_size[i])*roi_size[i]) for i in range(num_spatial_dims))
     roi_size = fall_back_tuple(roi_size, image_size)
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
