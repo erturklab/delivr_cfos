@@ -116,6 +116,7 @@ def run_inference(
     sw_batch_size=30, 
     overlap=0.5,
     verbosity=True,
+    load_all_ram=False,
 ):
     """
     call this function to run the sliding window inference.
@@ -163,8 +164,13 @@ def run_inference(
     # T R A N S F O R M S
     # datasets
     dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-    dataset = dataset_on_disk
-    #dataset = torch.as_tensor(dataset_on_disk)
+
+    if load_all_ram:
+        #load dataset in ram 
+        dataset = np.load(dataset_on_disk)
+    else:
+        #use memmap, save ram 
+        dataset = dataset_on_disk
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
@@ -205,9 +211,14 @@ def run_inference(
     #try to create output folder in case it's not there yet     
     os.makedirs(os.path.join(output_folder, comment), exist_ok=True)
 
-    #create empty output tensors (memmapped npy underneath) 
-    output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
-    count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16)
+    if load_all_ram: 
+        #create torch tensors in ram
+        output_image = torch.zeros(dataset_on_disk.shape,dtype=torch.float16)
+        count_map = torch.zeros(dataset_on_disk.shape,dtype=torch.float16)
+    else:
+        #create empty output tensors (memmapped npy underneath), saving ram
+        output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
+        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
     
     print("dataset_on_disk shape",dataset_on_disk.shape)
     print("output_image shape",output_image.shape)
@@ -274,8 +285,9 @@ def run_inference(
         #update index 
         old_idx = idx
     
-    #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
-    os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
+    if not load_all_ram:
+        #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
+        os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
     # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")
     network_output_file = os.path.join(binaries_path,"network_output.npy")

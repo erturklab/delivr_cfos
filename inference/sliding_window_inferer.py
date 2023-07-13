@@ -106,11 +106,15 @@ def sliding_window_inference(
     image_size = list(inputs.shape[2:])
     batch_size = inputs.shape[0]
     
-    
+            image_size = tuple(int(np.floor(image_size[i] / roi_size[i])*roi_size[i]) for i in range(num_spatial_dims))
     roi_size = fall_back_tuple(roi_size, image_size)
     # in case that image size is smaller than roi size
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
-    
+
+    #experimental: auto-subset (omit far edges to prevent striping)
+    for i in range(num_spatial_dims):
+        image_size = tuple(int(np.floor(image_size[i] / roi_size[i])*roi_size[i]) for i in range(num_spatial_dims))
+
     pad_size = []
     for k in range(len(inputs.shape) - 1, 1, -1):
         diff = max(roi_size[k - 2] - inputs.shape[k], 0)
@@ -141,7 +145,8 @@ def sliding_window_inference(
     
     # Create window-level importance map
     importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode='constant', sigma_scale=sigma_scale)
-
+    importance_map = importance_map.to(torch.float16)
+    
     # Perform predictions
     print("Inferring...")
             
@@ -161,9 +166,10 @@ def sliding_window_inference(
         unravel_slice = []
         for idx in slice_range:
             try:
-                slice_block = [[list([each_slice.start , each_slice.stop]) for each_slice in slices[idx % num_win+1]]]
+                slice_block = [[list([each_slice.start , each_slice.stop]) for each_slice in slices[idx % num_win]]]
                 unravel_slice += slice_block
             except:
+                print("skipped window: ",idx, " of ",num_win," windows")
                 pass
                 #this try-except block fixes an off-by-one error in the slice generation that leads to output shifting
         
@@ -179,8 +185,7 @@ def sliding_window_inference(
             #cast to tensor 
             single_slice_load = torch.as_tensor(single_slice_load,dtype=torch.int32)
             #add extra dimensions at beginning
-            single_slice_load = single_slice_load[None,:,:,:]
-            #single_slice_load = single_slice_load[None,:,:,:,:]
+            
             data_to_load += single_slice_load
         
         #concatenate all win_slices to a single batch (influenced by sw_batch_size, set according to on the graphics card VRAM)
@@ -188,7 +193,8 @@ def sliding_window_inference(
         
         #skip computing if this tile is background (as filtered and set to 0 by the mask_detection step)
         if window_data.max() == 0:
-            seg_prob=torch.ones_like(window_data)*-10
+            seg_prob=torch.ones_like(window_data)
+            seg_prob = seg_prob*-10
             #cast the results back to float16 
             seg_prob = seg_prob.to(torch.float16)
 
@@ -210,14 +216,15 @@ def sliding_window_inference(
                 window_data = torch.flip(window_data,dims=[flip_dim])
 
             #run the actual prediction 
-            seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
+            #seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
+            seg_prob = predictor(window_data, *args, **kwargs)  # batched patch segmentation
             
             # flip data back if previously flipped 
             if flip_dim is not None:
                 seg_prob = torch.flip(seg_prob,dims=[flip_dim])
             
             #send to cpu
-            #seg_prob.to(device)
+            seg_prob.to(device)
 
             #cast the results back to float16 
             seg_prob = seg_prob.to(torch.float16)
@@ -232,12 +239,18 @@ def sliding_window_inference(
             #print("output_image[original_idx]: ",output_image[original_idx])
             #print("importance_map shape: ",importance_map.shape)
             #print("seg_prob shape: ",seg_prob.shape)
+            #print("window_data shape: ",window_data.shape)
+            #print("importance map dtype: ",importance_map.dtype)
+            #print("seg_prob dtype: ",seg_prob.dtype)
+            #print("importance_map * seg_prob[idx - slice_g] shape + dtype: ",(importance_map * seg_prob[idx - slice_g]).shape, " dtype: ",(importance_map * seg_prob[idx - slice_g]).dtype)
             #print("current seg_prob shape: ",seg_prob[idx - slice_g].shape)
             #print("to_be_inserted shape: ", seg_prob[idx - slice_g][0,:,:,:].shape)
             #print("to be inserted shape: ",(output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] + seg_prob[idx - slice_g]).shape)
             output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
             count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
-            
+
+    print("finished inference")
+
 def _get_scan_interval(
     image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float
 ) -> Tuple[int, ...]:
