@@ -164,13 +164,7 @@ def run_inference(
     # T R A N S F O R M S
     # datasets
     dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-
-    if load_all_ram:
-        #load dataset in ram 
-        dataset = np.load(dataset_on_disk)
-    else:
-        #use memmap, save ram 
-        dataset = dataset_on_disk
+    dataset = dataset_on_disk
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(

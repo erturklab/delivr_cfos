@@ -143,7 +143,8 @@ def sliding_window_inference(
     
     # Create window-level importance map
     importance_map = compute_importance_map(get_valid_patch_size(image_size, roi_size), mode='constant', sigma_scale=sigma_scale)
-    importance_map = importance_map.to(torch.float16)
+    importance_map = importance_map.to(torch.float16).to(device)
+
     
     # Perform predictions
     print("Inferring...")
@@ -194,7 +195,7 @@ def sliding_window_inference(
             seg_prob=torch.ones_like(window_data)
             seg_prob = seg_prob*-10
             #cast the results back to float16 
-            seg_prob = seg_prob.to(torch.float16)
+            seg_prob = seg_prob.to(torch.float16).to(device)
 
         #if this tile contains data, process it: 
         else: 
@@ -221,11 +222,8 @@ def sliding_window_inference(
             if flip_dim is not None:
                 seg_prob = torch.flip(seg_prob,dims=[flip_dim])
             
-            #send to cpu
-            seg_prob.to(device)
-
             #cast the results back to float16 
-            seg_prob = seg_prob.to(torch.float16)
+            seg_prob = seg_prob.to(torch.float16).to(device)
 
         # store the result in the proper location of the full output. Apply weights from importance map. (skip this if it is all background) 
         for idx, original_idx in zip(slice_range, unravel_slice):
@@ -244,6 +242,8 @@ def sliding_window_inference(
             #print("current seg_prob shape: ",seg_prob[idx - slice_g].shape)
             #print("to_be_inserted shape: ", seg_prob[idx - slice_g][0,:,:,:].shape)
             #print("to be inserted shape: ",(output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] + seg_prob[idx - slice_g]).shape)
+            #print("is seg_prob on graphics card? ",seg_prob.get_device())
+            #print("is importance_map on gpu? ",importance_map.get_device())
             output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
             count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
 

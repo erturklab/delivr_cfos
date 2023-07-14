@@ -135,7 +135,8 @@ if __name__ == "__main__":
                                         stack_shape      = stack_shape, \
                                         model_weights    = settings["blob_detection"]["model_location"], \
                                         tta              = tta, \
-                                        comment          = mouse_name)
+                                        comment          = mouse_name,\ 
+                                        load_all_ram     = settings["load_all_ram"])
             else:
                 print(f"{mouse} already processed, skipping...")
 
