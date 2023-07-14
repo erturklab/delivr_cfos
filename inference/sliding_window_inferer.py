@@ -110,8 +110,8 @@ def sliding_window_inference(
     image_size = tuple(max(image_size[i], roi_size[i]) for i in range(num_spatial_dims))
 
     #experimental: auto-subset (omit far edges to prevent striping)
-    for i in range(num_spatial_dims):
-        image_size = tuple(int(np.floor(image_size[i] / roi_size[i])*roi_size[i]) for i in range(num_spatial_dims))
+    #for i in range(num_spatial_dims):
+    #    image_size = tuple(int(np.floor(image_size[i] / roi_size[i])*roi_size[i]) for i in range(num_spatial_dims))
 
     pad_size = []
     for k in range(len(inputs.shape) - 1, 1, -1):
