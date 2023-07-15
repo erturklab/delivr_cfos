@@ -184,7 +184,8 @@ def sliding_window_inference(
             #cast to tensor 
             single_slice_load = torch.as_tensor(single_slice_load,dtype=torch.int32)
             #add extra dimensions at beginning
-            single_slice_load = single_slice_load.expand(1,*single_slice_load.shape)
+            #single_slice_load = single_slice_load.expand(1,*single_slice_load.shape)
+            single_slice_load = single_slice_load[None,:,:,:]
             data_to_load += single_slice_load
         
         #concatenate all win_slices to a single batch (influenced by sw_batch_size, set according to on the graphics card VRAM)
