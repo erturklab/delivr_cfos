@@ -152,7 +152,8 @@ def mbrainaligner_atlas_to_ccf(cells,LabelImage):
 
 def create_region_table(cells, ontology_df):
     ##count the cells per region (i.e. occurrence of each value) 
-    uniquetable = ontology_df.set_index('graph_order').iloc[cells['graph_order'].unique()]
+    #uniquetable = ontology_df.set_index('graph_order').iloc[cells['graph_order'].unique()]
+    uniquetable = ontology_df.set_index('graph_order')
     uniquetable['number'] = cells['graph_order'].value_counts()
     #reset index for normal range 
     uniquetable = uniquetable.reset_index()
@@ -240,7 +241,6 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
 #=== Main function body === 
 #if __name__ == '__main__': 
 def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_list,target_folder,hookoverall,hookfactor):
-    
     #create a heatmap collection 
     heatmap_collection = {}
 

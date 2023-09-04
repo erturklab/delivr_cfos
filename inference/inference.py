@@ -164,7 +164,12 @@ def run_inference(
     # T R A N S F O R M S
     # datasets
     dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-    dataset = dataset_on_disk
+    #dataset = dataset_on_disk
+    #pad input (requires loading into ram)
+    stack_shape = list(stack_shape)
+    for idx, dim in enumerate(stack_shape[2:]):
+        stack_shape[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])-dim
+    dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape[2]),(0,stack_shape[3]),(0,stack_shape[4])))
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
@@ -279,9 +284,17 @@ def run_inference(
         #update index 
         old_idx = idx
     
+    #crop resulting array to original shape
+    original_shape = dataset_on_disk.shape
+    temporary_shape = output_image.shape
+
+    #crop to original dimensions
+    output_image = output_image[:,:,:original_shape[2],:original_shape[3],:original_shape[4]]
+
     if not load_all_ram:
         #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
         os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
+
     # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")
     network_output_file = os.path.join(binaries_path,"network_output.npy")

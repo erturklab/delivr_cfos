@@ -212,6 +212,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
     #subset for region 
     cells = region_subset.mesh.insidePoints(cells).points()
     '''
+    
     #region_to_extract can be a single region name, or a list 
     #if it is a single name, then add to the scene and subset any cells for it 
     if not isinstance(region_to_extract,list):
@@ -228,6 +229,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
         #when trying to use a list of regions, go through them one by one and subset cells each time 
         #define name 
         brain_name = "video_" + "_" + output_name 
+        '''
         for idx, region in enumerate(region_to_extract):
             region_subset = scene.add_brain_region(region, alpha=0.0)
             region_color_hex = str('#'+cells_color[idx]) #this assumes that cell_color is a list with the same length as region_to_extract, containing hex values 
@@ -246,7 +248,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
                 print('region skipped:',region)
                 pass #ignore errors
             #define name 
-        
+        '''
     
 
     brain_name = "cells_" + brain_name
@@ -260,7 +262,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
     plane.mesh.SetPosition(7829.739797878185, 4296.026746612369, -5700.497969379508)
     scene.slice(plane,close_actors=False)
     '''
-    '''
+    
     if density is not None:
         #Changed points.py to be able to adapt color map, standard = "Dark2" from vedo: https://vedo.embl.es/autodocs/_modules/vedo/colors.html 
         scene.add(PointsDensity(cells,dims=(100,100,100),colormap="twilight",radius=750))
@@ -269,7 +271,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
         #add points to scene 
         scene.add(Points(cells,colors=cells_color,alpha=0.4,res=5,radius=15))
         brain_name = "cells_" + brain_name
-    '''
+    
 
     #scene.render()
     
@@ -282,6 +284,7 @@ def render_screenshot (screenshots_folder, cells, output_name ,cells_color,regio
         scene.render(camera=camera, interactive=True)
         #scene.screenshot(name=brain_name)
         #scene.close()
+    
     '''
     #debug
     scene.render()
@@ -307,20 +310,19 @@ def mbrainaligner_atlas_to_ccf(cells):
     '''
     #swap axes 
     cells[["z","x","y"]] = cells[["x","y","z"]]
-    
+    '''
     #flip x 
     cells['x'] = 528-cells['x']
     cells['y'] = 320-cells['y']
-    '''
+    
     #remove padding (empirically determined by checking a tiff extract of their CCF_u8_xpad vs standard CCF3)
-    cells["x"] = cells["x"]-12
-    cells["y"] = cells["y"]-20
-    cells["z"] = cells["z"]-20
+    cells["x"] = cells["x"]-210
+    cells["y"] = cells["y"]+200
+    cells["z"] = cells["z"]
     
-    
-    cells["x"] = cells["x"]*50
-    cells["y"] = cells["y"]*50
-    cells["z"] = cells["z"]*50
+    cells["x"] = cells["x"]*25
+    cells["y"] = cells["y"]*25
+    cells["z"] = cells["z"]*25
     
     #transfer to numpy array for brainrender
     cells_np = cells.to_numpy()
@@ -346,6 +348,9 @@ def render_videos (screenshots_folder, cells, output_name ,cells_color,region_to
         cells = region_subset.mesh.insidePoints(cells).points()
         #add points to scene 
         scene.add(Points(cells,colors=cells_color,alpha=0.2,res=5,radius=15))
+    elif density is not None:
+        brain_name = "video_" + "_" + output_name 
+        scene.add(PointsDensity(cells,dims=(100,100,100),colormap="twilight",radius=500))
     else:
         #when trying to use a list of regions, go through them one by one and subset cells each time 
         #define name 
@@ -375,7 +380,7 @@ def render_videos (screenshots_folder, cells, output_name ,cells_color,region_to
 
     
 
-target_regions = [#"grey", #All brain
+target_regions = ["grey", #All brain
                   #"HIP", #Hippocampal region
                   #"Isocortex", #Cortex proper
                   #"CNU", #Striatum + GP
@@ -389,8 +394,8 @@ target_regions = [#"grey", #All brain
                   #"VIS", #V1
                   #"HY", #Hypothalamus
                   #"MTN", #midline nuclei of the thalamus
-                  'PL', #prelimbic
-                  'LHA', #Lateral Hypothalamus
+                  #'PL', #prelimbic
+                  #'LHA', #Lateral Hypothalamus
                   ]
 
 #list of (uncorrected t-test) significant cortical regions (NC26 vs C26)
@@ -544,37 +549,57 @@ for mouse in target_mice:
         #render_screenshot (target_folder, cells, mouse[0], mouse[1], region, camera=cameras.get(region))
         plane = render_screenshot (target_folder, cells, mouse[0], mouse[1], region, camera=techpaper_cam_01)
 '''
-'''
-target_folder = '/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/2022-05-27_for_fig_4c/'
+
+target_folder = '/home/wirrbel/2023-08-01_delivr_main_datasets_stats/single_brain_densities/'
 #try to create target folder, skip if it already exists
 try: 
     os.mkdir(target_folder)
 except:
     pass    
 
-c26_cellsfiles = ["/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3403_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3406_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3407_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3408_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3409_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/c26_3411_local_registered_with_original_size.csv"
+c26_cellsfiles = ["/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_137-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_137-20-Rescan_cFos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_569-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_569-20_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_669-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_669-80Rescan_647_4x_3x3_25o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3403_cfos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3406_cfos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3407_cfos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3408_cfos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3409_cfos647_4x_3x3_20o_6um_stitching.csv",
+                  "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_c26_3411_cfos647_4x_3x3_20o_6um_stitching.csv",
                     ]
 
-nc26_cellsfiles = ["/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3412local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3413local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/Nc26_3416local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3417local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/Nc26_3422local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/nc26_3423local_registered_with_original_size.csv"
-                    ]
+nc26_cellsfiles = ["/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_177-2_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_177-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_177-20_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_448-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_488-20_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_714-20Rescan_647_4x_3x3_25o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3412_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3413_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3416_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3417_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3422_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_nc26_3423_cfos647_4x_3x3_20o_6um_stitching.csv"
+                   ]
 
-PBS_cellsfiles = ["/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3400_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3401_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3402_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3418_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3419_local_registered_with_original_size.csv",
-                    "/home/wirrbel/2021-10-17_cFos_realignments/mBrainAligner_swc_results_collection_v06/PBS_3420_local_registered_with_original_size.csv"
-                    ]
+PBS_cellsfiles = ["/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS3_586-8_LLC_cFos_4x_3x3_20o_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS4_595-2_LLC_cFos_4x_3x3_20o_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_568-2_cFos_647_4x_3x3_15o_6um_stiching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_Pbs_568-8_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_568-20_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_676-2_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_676-20_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_676-80_cFos_647_4x_3x3_15o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3400_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3401_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3402_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3418_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3419_cfos647_4x_3x3_20o_6um_stitching.csv",
+                   "/home/wirrbel/2023-08-01_delivr_main_datasets_stats/2023-06-27_Delivr_run_results/05_region_assignment/cells_PBS_3420_cfos647_4x_3x3_20o_6um_stitching.csv"
+                   ]
 
 #define empty cells array 
 cells_c26 = np.empty((1,3))
@@ -589,7 +614,7 @@ cells_PBS = np.empty((1,3))
 for cellsfile in c26_cellsfiles:
     #load xyz 
     #cellsfile = "/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/v05_3407_working/local_registered_data.swc"
-    cells_all = pd.read_csv(cellsfile,sep = ' ',usecols=['x','y','z','Size'])
+    cells_all = pd.read_csv(cellsfile,sep = ',',usecols=['y','x','z','acronym'])
 
     #define too-small segments 
     #cells_toosmall = cells_all.query("Size < 9")
@@ -598,10 +623,14 @@ for cellsfile in c26_cellsfiles:
     #define too-large segments 
     #cells_toolarge = cells_all.query("Size > 200")
     #cells_toolarge .drop('Size',axis=1,inplace=True)
-    
+    '''
     #define valid cells (mean + 3x SD = 104. manual min/max = 9/200)
     valid_cells = cells_all.query("Size < 104")
     valid_cells.drop('Size',axis=1,inplace=True)
+    '''
+    #remove background cells
+    valid_cells = cells_all.query("acronym != \'bgr\'")
+    valid_cells.drop(labels="acronym",axis=1,inplace=True)
 
     #remove padding (empirically determined by checking a tiff extract of their CCF_u8_xpad vs standard CCF3)
     cells_np = mbrainaligner_atlas_to_ccf(valid_cells)
@@ -617,12 +646,14 @@ for cellsfile in c26_cellsfiles:
     #for region in target_regions:
     #    render_screenshot (target_folder, cells_np, output_name, 'purple', region, camera=cFosCamera_01,density=True)
     #    render_screenshot (target_folder, cells_np, output_name, 'purple', region, camera=cFosCamera_01)
+    #render_screenshot (target_folder, cells_np, output_name, 'purple', [''], camera=cFosCamera_01,density=True)
+    
 
 
 for cellsfile in nc26_cellsfiles:
     #load xyz 
     #cellsfile = "/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/v05_3407_working/local_registered_data.swc"
-    cells_all = pd.read_csv(cellsfile,sep = ' ',usecols=['x','y','z','Size'])
+    cells_all = pd.read_csv(cellsfile,sep = ',',usecols=['y','x','z','acronym'])
 
     #define too-small segments 
     #cells_toosmall = cells_all.query("Size < 9")
@@ -631,11 +662,15 @@ for cellsfile in nc26_cellsfiles:
     #define too-large segments 
     #cells_toolarge = cells_all.query("Size > 200")
     #cells_toolarge .drop('Size',axis=1,inplace=True)
-    
+    '''
     #define valid cells (mean + 3x SD = 104. manual min/max = 9/200)
     valid_cells = cells_all.query("Size < 104")
     valid_cells.drop('Size',axis=1,inplace=True)
-
+    '''
+    #remove background cells
+    valid_cells = cells_all.query("acronym != \'bgr\'")
+    valid_cells.drop(labels="acronym",axis=1,inplace=True)
+    
     #remove padding (empirically determined by checking a tiff extract of their CCF_u8_xpad vs standard CCF3)
     cells_np = mbrainaligner_atlas_to_ccf(valid_cells)
     
@@ -654,7 +689,7 @@ for cellsfile in nc26_cellsfiles:
 for cellsfile in PBS_cellsfiles:
     #load xyz 
     #cellsfile = "/home/wirrbel/2022-02-22_cFos_mBrainaligner_visualization/v05_3407_working/local_registered_data.swc"
-    cells_all = pd.read_csv(cellsfile,sep = ' ',usecols=['x','y','z','Size'])
+    cells_all = pd.read_csv(cellsfile,sep = ',',usecols=['y','x','z','acronym'])
 
     #define too-small segments 
     #cells_toosmall = cells_all.query("Size < 9")
@@ -663,10 +698,14 @@ for cellsfile in PBS_cellsfiles:
     #define too-large segments 
     #cells_toolarge = cells_all.query("Size > 200")
     #cells_toolarge .drop('Size',axis=1,inplace=True)
-    
+    '''
     #define valid cells (mean + 3x SD = 104. manual min/max = 9/200)
     valid_cells = cells_all.query("Size < 104")
     valid_cells.drop('Size',axis=1,inplace=True)
+    '''
+    #remove background cells
+    valid_cells = cells_all.query("acronym != \'bgr\'")
+    valid_cells.drop(labels="acronym",axis=1,inplace=True)
 
     #remove padding (empirically determined by checking a tiff extract of their CCF_u8_xpad vs standard CCF3)
     cells_np = mbrainaligner_atlas_to_ccf(valid_cells)
@@ -681,7 +720,7 @@ for cellsfile in PBS_cellsfiles:
     #    render_screenshot (target_folder, cells_np, output_name, 'grey', region, camera=cFosCamera_01,density=True)
     #    render_screenshot (target_folder, cells_np, output_name, 'grey', region, camera=cFosCamera_01)
 
-'''
+
 '''
 
 #debug
@@ -706,7 +745,7 @@ cells = mbrainaligner_atlas_to_ccf(valid_cells)
 
 '''
 
-'''
+
 #names 
 c26_namefolder = "c26_avg_density"
 nc26_namefolder = "nc26_avg_density"
@@ -715,39 +754,39 @@ PBS_namefolder = "pbs_avg_density"
 
 #averages
 #render for c26
-
+'''
 for region in target_regions:
-    #render_screenshot (target_folder, cells_c26, c26_namefolder, 'purple', '', camera=cFosCamera_02,density=True)
-    render_screenshot (target_folder, [], c26_namefolder, 'purple', region, camera=cFosCamera_02,density=None)
-    #render_screenshot (target_folder, cells_c26, c26_namefolder, 'purple', region, camera=cFosCamera_02)
+    render_screenshot (target_folder, cells_c26, c26_namefolder, 'purple', [''], camera=cFosCamera_02,density=True)
+    #render_screenshot (target_folder, [], c26_namefolder, 'purple', region, camera=cFosCamera_02,density=None)
+    #render_screenshot (target_folder, cells_c26, c26_namefolder, 'purple', region, camera=cFosCamera_02,density=True)
 
 #render for nc26
 for region in target_regions:
-    #render_screenshot (target_folder, cells_nc26, nc26_namefolder, 'teal', '', camera=cFosCamera_02,density=True)
-    render_screenshot (target_folder, [], nc26_namefolder, 'teal', region, camera=cFosCamera_02,density=None)
-    #render_screenshot (target_folder, cells_nc26, nc26_namefolder, 'teal', region, camera=cFosCamera_02)
+    render_screenshot (target_folder, cells_nc26, nc26_namefolder, 'teal', [''], camera=cFosCamera_02,density=True)
+    #render_screenshot (target_folder, [], nc26_namefolder, 'teal', region, camera=cFosCamera_02,density=None)
+    #render_screenshot (target_folder, cells_nc26, nc26_namefolder, 'teal', region, camera=cFosCamera_02,density=True)
 
 
 #render for bc26
 for region in target_regions:
-    #render_screenshot (target_folder, cells_PBS, PBS_namefolder, 'grey', '', camera=cFosCamera_02,density=True)
-    render_screenshot (target_folder, [], PBS_namefolder, 'grey', region, camera=cFosCamera_02,density=None)
-    #render_screenshot (target_folder, cells_PBS, PBS_namefolder, 'grey', region, camera=cFosCamera_02)
+    render_screenshot (target_folder, cells_PBS, PBS_namefolder, 'grey', [''], camera=cFosCamera_02,density=True)
+    #render_screenshot (target_folder, [], PBS_namefolder, 'grey', region, camera=cFosCamera_02,density=None)
+    #render_screenshot (target_folder, cells_PBS, PBS_namefolder, 'grey', region, camera=cFosCamera_02,density=True)
 '''
-'''
+
 ### === Video === 
 #render for c26
 for region in target_regions:
-    render_videos(target_folder, cells_c26, c26_namefolder, 'purple', region, camera=cFosCamera_01)
+    render_videos(target_folder, cells_c26, c26_namefolder, 'purple', [''], camera=cFosCamera_01,density=True)
 
 #render for c26
 for region in target_regions:
-    render_videos(target_folder, cells_nc26, nc26_namefolder, 'teal', region, camera=cFosCamera_01)
+    render_videos(target_folder, cells_nc26, nc26_namefolder, 'teal', [''], camera=cFosCamera_01,density=True)
 
 #render for c26
 for region in target_regions:
-    render_videos(target_folder, cells_PBS, PBS_namefolder, 'grey', region, camera=cFosCamera_01)
-
+    render_videos(target_folder, cells_PBS, PBS_namefolder, 'grey', [''], camera=cFosCamera_01,density=True)
+'''
 ### === Video with multiple areas 
 #c26 vs nc26
 render_videos(target_folder, cells_c26, "c26vsnc26_c26_cells", 'grey', nc26_vs_c26, camera=cFosCamera_01)
@@ -762,6 +801,8 @@ render_videos(target_folder, cells_nc26, "nc26vspbs_nc26_cells", 'grey', nc26_vs
 render_videos(target_folder, cells_PBS, "nc26vspbs_pbs_cells", 'grey', nc26_vs_pbs, camera=cFosCamera_01)
 '''
 
+
+'''
 #### === for fig 4c, example brain 3400 === 
 
 #file with segments 
@@ -807,3 +848,4 @@ for camera in camera_list:
         cam_name = str(camera.get('pos'))
     
     render_screenshot(target_folder, cells_np, output_name+'_'+cam_name, area_list['ColorGroup'].to_list(), area_list['GroupAcronym'].to_list(), camera=camera)
+'''
