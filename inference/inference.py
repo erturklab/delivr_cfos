@@ -212,8 +212,8 @@ def run_inference(
 
     if load_all_ram: 
         #create torch tensors in ram
-        output_image = torch.zeros(dataset_on_disk.shape,dtype=torch.float16)
-        count_map = torch.zeros(dataset_on_disk.shape,dtype=torch.float16)
+        output_image = torch.zeros(dataset.shape,dtype=torch.float16)
+        count_map = torch.zeros(dataset.shape,dtype=torch.float16)
     else:
         #create empty output tensors (memmapped npy underneath), saving ram
         output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
