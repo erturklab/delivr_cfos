@@ -85,7 +85,7 @@ def create_nifti_seg(
     binarized_outputs.flush()
 
 
-def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True):
+def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True,torch_dtype=torch.float16):
     #creates a zeroed-out npy file with shape=shape on the disk, returns as torch tensor view. dtype is float16. 
     #first make sure previous temp files are erased 
     try:                
@@ -97,7 +97,7 @@ def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True)
     #now re-read from disk as memmap (saving RAM)
     empty_memmap = np.memmap(file_location,mode='w+',dtype=dtype,shape=shape)
     if return_torch:
-        empty_memmap = torch.as_tensor(empty_memmap,dtype=torch.float16)
+        empty_memmap = torch.as_tensor(empty_memmap,dtype=torch_dtype)
     return empty_memmap
 
 
@@ -166,10 +166,14 @@ def run_inference(
     dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
     #dataset = dataset_on_disk
     #pad input (requires loading into ram)
-    stack_shape = list(stack_shape)
-    for idx, dim in enumerate(stack_shape[2:]):
-        stack_shape[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])-dim
-    dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape[2]),(0,stack_shape[3]),(0,stack_shape[4])))
+    stack_shape_pad = list(stack_shape)
+    for idx, dim in enumerate(stack_shape_pad[2:]):
+        stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])-dim
+    dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape_pad[2]),(0,stack_shape_pad[3]),(0,stack_shape_pad[4])))
+
+    #make sure dataset_on_disk does not stay in RAM, but is only memmapped for downstream size estimations 
+    del dataset_on_disk
+    dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
@@ -213,7 +217,8 @@ def run_inference(
     if load_all_ram: 
         #create torch tensors in ram
         output_image = torch.zeros(dataset.shape,dtype=torch.float16)
-        count_map = torch.zeros(dataset.shape,dtype=torch.float16)
+        #count_map = torch.zeros(dataset.shape,dtype=torch.uint8)
+        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True,torch_dtype=torch.uint8)
     else:
         #create empty output tensors (memmapped npy underneath), saving ram
         output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
@@ -291,9 +296,12 @@ def run_inference(
     #crop to original dimensions
     output_image = output_image[:,:,:original_shape[2],:original_shape[3],:original_shape[4]]
 
-    if not load_all_ram:
-        #delete the count_map (not required in any case, the rest is kept if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
-        os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
+    if load_all_ram:
+        #save output on disk because it's been kept only in ram before (will be removed at the end if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
+        np.save(file = os.path.join(output_folder, comment,"inference_output.npy"),arr = output_image.numpy())
+
+    #delete the count_map (not required in any case)
+    os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
 
     # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")

@@ -246,7 +246,7 @@ def sliding_window_inference(
             #print("is seg_prob on graphics card? ",seg_prob.get_device())
             #print("is importance_map on gpu? ",importance_map.get_device())
             output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
-            count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map # directly replaces the values 
+            count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map.to(torch.uint8) # directly replaces the values 
 
     print("finished inference")
 
