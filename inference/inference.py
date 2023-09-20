@@ -177,7 +177,7 @@ def run_inference(
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
-        dimensions=3,
+        spatial_dims=3,
         in_channels=1,
         out_channels=1,
         features=(32, 32, 64, 128, 256, 32),
@@ -218,7 +218,7 @@ def run_inference(
         #create torch tensors in ram
         output_image = torch.zeros(dataset.shape,dtype=torch.float16)
         #count_map = torch.zeros(dataset.shape,dtype=torch.uint8)
-        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True,torch_dtype=torch.uint8)
+        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset.shape,dtype=np.float16,return_torch=True,torch_dtype=torch.uint8)
     else:
         #create empty output tensors (memmapped npy underneath), saving ram
         output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
