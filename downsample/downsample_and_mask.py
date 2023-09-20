@@ -354,14 +354,14 @@ def downsample_mask(settings, brain):
 
     #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
     start = datetime.datetime.now()
-    np.save(os.path.join(results_folder, "mask_us.npy"), np.zeros(shape=raw_shape,dtype=np.uint8))
+    #np.save(os.path.join(results_folder, "mask_us.npy"), np.zeros(shape=raw_shape,dtype=np.uint8))
+    #mask_us = np.memmap(os.path.join(results_folder, "mask_us.npy"), mode='r+', dtype=np.uint8, shape=raw_shape)
     
-    mask_us = np.memmap(os.path.join(results_folder, "mask_us.npy"), mode='r+', dtype=np.uint8, shape=raw_shape)
+    #directly create a npy file on disk
+    mask_us = np.lib.format.open_memmap(os.path.join(results_folder, "mask_us.npy"), mode='w+', dtype=np.uint8, shape=raw_shape)
+
+    #upscale the mask. Scipy.ndimage.zoom is single-threaded and likely to take a while.  
     mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output=mask_us,order=2, prefilter=False)   
-    
-    ##threshold mask
-    #mask_us[mask_us < 128] = 0
-    #mask_us[mask_us >= 128] = 1
     
     delta = datetime.datetime.now() - start
     print(f"Zoom: {delta}")
@@ -401,9 +401,17 @@ def downsample_mask(settings, brain):
     print(f"Masking: {delta}")
     '''
     #reserve memmap on disk, the 2 extra dimensions and dtype=float16 are to prepare for the tensor conversion 
-    masked_nii = np.zeros(shape=(1,1,*raw_shape), dtype=np.uint16)
-    np.save(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), masked_nii)
-    masked_nii = np.memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"),mode='r+',dtype=np.uint16,shape=(1,1,*raw_shape))
+    #masked_nii = np.zeros(shape=(1,1,*raw_shape), dtype=np.uint16)
+    #np.save(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), masked_nii)
+    #masked_nii = np.memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"),mode='r+',dtype=np.uint16,shape=(1,1,*raw_shape))
+
+    #pre-compute the size of the array so that it doesn't need to be padded in RAM during inference 
+    raw_shape_pad = list(raw_shape)
+    for idx, dim in enumerate(raw_shape_pad):
+        raw_shape_pad[idx] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
+
+    #create a memmapped npy array on disk. This method should be RAM-friendlier than having to create the array in RAM, then saving to disk
+    masked_nii = np.lib.format.open_memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), mode='w+', dtype=np.uint16,shape=(1,1,*raw_shape_pad))
 
     for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
         img = cv2.imread(raw_location + "/" + item, -1)
@@ -411,7 +419,7 @@ def downsample_mask(settings, brain):
         # Mask raw data with upscaled mask
         img *= mask_us[i,:,:]
         # Add to final Npy output
-        masked_nii[0,0,i,:,:] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
+        masked_nii[0,0,i,0:raw_shape[1],0:raw_shape[2]] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
         # Save masked raw data
         io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, compression='lzw', check_contrast=False)
     delta = datetime.datetime.now() - start

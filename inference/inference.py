@@ -38,13 +38,15 @@ def create_nifti_seg(
 ):
     
     #save activated network output as npy, then re-read
-    np.save(network_output_file,np.zeros(shape=model_output.shape[1:], dtype=np.float32))
-    activated_outputs = np.memmap(network_output_file,mode='w+',dtype=np.float32,shape=model_output.shape[1:])
+    #np.save(network_output_file,np.zeros(shape=model_output.shape[1:], dtype=np.float32))
+    #activated_outputs = np.memmap(network_output_file,mode='w+',dtype=np.float32,shape=model_output.shape[1:])
+    activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=model_output.shape[1:])
     
     #save binarized network output as npy, then re-read
-    np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
-    binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
-    
+    #np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
+    #binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
+    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])    
+
     #note that the input_image is only used for re-generating the mask (for re-masking the binaries, this reduces edge effects at the edge of the mask)
 
     #construct iterator over output_image array. Tweak buffer size for larger blocks
@@ -93,9 +95,10 @@ def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True,
     except:
         pass
     #save empty np array on disk 
-    np.save(file_location,np.zeros(shape=shape, dtype=dtype))
+    #np.save(file_location,np.zeros(shape=shape, dtype=dtype))
     #now re-read from disk as memmap (saving RAM)
-    empty_memmap = np.memmap(file_location,mode='w+',dtype=dtype,shape=shape)
+    #empty_memmap = np.memmap(file_location,mode='w+',dtype=dtype,shape=shape)
+    empty_memmap = np.np.lib.format.open_memmap(file_location,mode='w+',dtype=dtype,shape=shape)
     if return_torch:
         empty_memmap = torch.as_tensor(empty_memmap,dtype=torch_dtype)
     return empty_memmap
@@ -117,6 +120,7 @@ def run_inference(
     overlap=0.5,
     verbosity=True,
     load_all_ram=False,
+    settings = None
 ):
     """
     call this function to run the sliding window inference.
@@ -161,19 +165,28 @@ def run_inference(
     sw_batch_size = empirical_sw_batch_size
     print("using batch size: ",sw_batch_size)
 
+    if settings is not None:
+        #load the crop_size from the settings (overriding default of (64,64,32))
+        crop_size_0 = settings["blob_detection"]["window_dimensions"]["window_dim_0"]
+        crop_size_1 = settings["blob_detection"]["window_dimensions"]["window_dim_1"]
+        crop_size_2 = settings["blob_detection"]["window_dimensions"]["window_dim_2"]
+        #assemble crop_size
+        crop_size = (crop_size_0,crop_size_1,crop_size_2)
+
     # T R A N S F O R M S
     # datasets
-    dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-    #dataset = dataset_on_disk
-    #pad input (requires loading into ram)
+    #compute padded size (npy file dimensions should be padded already in downsample_and_mask)
     stack_shape_pad = list(stack_shape)
     for idx, dim in enumerate(stack_shape_pad[2:]):
-        stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])-dim
-    dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape_pad[2]),(0,stack_shape_pad[3]),(0,stack_shape_pad[4])))
+        stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
+    #dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape_pad[2]),(0,stack_shape_pad[3]),(0,stack_shape_pad[4])))
+    #dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
+    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape_pad)
+
 
     #make sure dataset_on_disk does not stay in RAM, but is only memmapped for downstream size estimations 
-    del dataset_on_disk
-    dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
+    #del dataset_on_disk
+    #dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
 
     # ~~<< M O D E L >>~~
     model = BasicUNet(
@@ -189,7 +202,9 @@ def run_inference(
     checkpoint = torch.load(model_weights, map_location="cpu")
 
     # inferer
+    #define inferer setting 
     patch_size = crop_size
+    
 
     inferer = SlidingWindowInferer(
         roi_size=patch_size,
@@ -221,10 +236,10 @@ def run_inference(
         count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset.shape,dtype=np.float16,return_torch=True,torch_dtype=torch.uint8)
     else:
         #create empty output tensors (memmapped npy underneath), saving ram
-        output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
-        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset_on_disk.shape,dtype=np.float16,return_torch=True)
+        output_image = create_empty_memmap (file_location = os.path.join(output_folder, comment,"inference_output.npy"), shape = dataset.shape,dtype=np.float16,return_torch=True)
+        count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset.shape,dtype=np.float16,return_torch=True)
     
-    print("dataset_on_disk shape",dataset_on_disk.shape)
+    #print("dataset_on_disk shape",dataset_on_disk.shape)
     print("output_image shape",output_image.shape)
     print("count_map shape",count_map.shape)
 
@@ -290,7 +305,7 @@ def run_inference(
         old_idx = idx
     
     #crop resulting array to original shape
-    original_shape = dataset_on_disk.shape
+    original_shape = stack_shape
     temporary_shape = output_image.shape
 
     #crop to original dimensions

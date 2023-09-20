@@ -18,7 +18,13 @@
     "blob_detection":{
         "input_location":"/data/output/01_mask_detection/output/",
         "model_location":"./models/inference_weights.tar",
-        "output_location":"/data/output/02_blob_detection/output/"
+        "output_location":"/data/output/02_blob_detection/output/",
+        "window_dimensions":{
+            "window_dim_0":64,
+            "window_dim_1":64,
+            "window_dim_2":32
+        },
+        "load_all_ram":"True"
     },
     "postprocessing":{
         "input_location":"/data/output/02_blob_detection/output/",
