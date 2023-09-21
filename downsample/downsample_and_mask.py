@@ -250,7 +250,7 @@ def downsample_mask(settings, brain):
     #     downsample_zplanes(raw_location, raw_image_list, x_ratio, y_ratio, z_ratio, temp_dir, z_planes)
     
     #list images 
-    downsampled_list = sorted([os.path.join(temp_dir.name, file) for file in os.listdir(temp_dir.name)])
+    downsampled_list = sorted([os.path.join(temp_dir.name, file) for file in os.listdir(temp_dir)])
     
     #debug
     print(downsampled_list)
