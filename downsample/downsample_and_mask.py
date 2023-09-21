@@ -59,7 +59,7 @@ def downsample_zplanes(raw_location,raw_image_list,x_ratio,y_ratio,z_ratio,temp_
     z_chunk_downsampled = transform.downscale_local_mean(z_chunk_imgs,(z_ratio,y_ratio,x_ratio)).astype('uint16')
     
     #save to temporary directory 
-    io.imsave(os.path.join(temp_dir.name,'downsampled_um_z' + str(z_planes[0]).zfill(4) + '-' + str(z_planes[1]).zfill(4) + '.tif'),z_chunk_downsampled,compression='lzw',check_contrast=False)    
+    io.imsave(os.path.join(temp_dir,'downsampled_um_z' + str(z_planes[0]).zfill(4) + '-' + str(z_planes[1]).zfill(4) + '.tif'),z_chunk_downsampled,compression='lzw',check_contrast=False)    
 
 def save_vaa3d(teraconverter_path, item_path, results_path):
     cmd = str(f"{teraconverter_path}teraconverter --sfmt=\"TIFF (3D)\" \
@@ -233,6 +233,7 @@ def downsample_mask(settings, brain):
     #create a temporary storage directory for downsampling 
     #temp_dir = tempfile.TemporaryDirectory() 
     temp_dir = os.path.join(results_folder,"temp_downsampling_cache")
+    os.makedirs(temp_dir, exist_ok=True)
     #XXX XXX XXX XXX XXX XXX XXX XXX
 
     #open multiprocessing pool 
@@ -250,7 +251,7 @@ def downsample_mask(settings, brain):
     #     downsample_zplanes(raw_location, raw_image_list, x_ratio, y_ratio, z_ratio, temp_dir, z_planes)
     
     #list images 
-    downsampled_list = sorted([os.path.join(temp_dir.name, file) for file in os.listdir(temp_dir)])
+    downsampled_list = sorted([os.path.join(temp_dir, file) for file in os.listdir(temp_dir)])
     
     #debug
     print(downsampled_list)
