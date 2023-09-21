@@ -222,7 +222,8 @@ def run_inference(
     model = model.to(device)
 
     # load
-    model.load_state_dict(checkpoint["model_state"])
+    model.load_state_dict(checkpoint["state_dict"])
+    
 
     ### DATA PREP ###
     #create output folder if not already present:
