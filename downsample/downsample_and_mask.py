@@ -23,6 +23,7 @@ from collections import deque
 from subprocess import DEVNULL
 
 
+
 def write_nifti(path,volume):
     """
     write_nifti(path,volume)
@@ -230,7 +231,8 @@ def downsample_mask(settings, brain):
         os.makedirs(results_folder)
         
     #create a temporary storage directory for downsampling 
-    temp_dir = tempfile.TemporaryDirectory() 
+    #temp_dir = tempfile.TemporaryDirectory() 
+    temp_dir = os.path.join(results_folder,"temp_downsampling_cache")
     #XXX XXX XXX XXX XXX XXX XXX XXX
 
     #open multiprocessing pool 
@@ -290,7 +292,8 @@ def downsample_mask(settings, brain):
     save_vaa3d(teraconverter_path, os.path.join(results_folder,downsampled_name + '_8bit.tif'), downsampled_masked_vaa3d)
     
     #cleanup 
-    temp_dir.cleanup()
+    #temp_dir.cleanup()
+    shutil.rmtree(temp_dir)
     
     #run Ilastik 
     print(results_folder)

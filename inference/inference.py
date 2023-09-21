@@ -181,7 +181,7 @@ def run_inference(
         stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
     #dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape_pad[2]),(0,stack_shape_pad[3]),(0,stack_shape_pad[4])))
     #dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape_pad)
+    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=tuple(stack_shape_pad))
 
 
     #make sure dataset_on_disk does not stay in RAM, but is only memmapped for downstream size estimations 
