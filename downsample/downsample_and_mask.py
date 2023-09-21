@@ -405,6 +405,13 @@ def downsample_mask(settings, brain):
     #np.save(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), masked_nii)
     #masked_nii = np.memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"),mode='r+',dtype=np.uint16,shape=(1,1,*raw_shape))
 
+    #load the crop_size from the settings (default (64,64,32))
+    crop_size_0 = settings["blob_detection"]["window_dimensions"]["window_dim_0"]
+    crop_size_1 = settings["blob_detection"]["window_dimensions"]["window_dim_1"]
+    crop_size_2 = settings["blob_detection"]["window_dimensions"]["window_dim_2"]
+    #assemble crop_size
+    crop_size = (crop_size_0,crop_size_1,crop_size_2)
+
     #pre-compute the size of the array so that it doesn't need to be padded in RAM during inference 
     raw_shape_pad = list(raw_shape)
     for idx, dim in enumerate(raw_shape_pad):
