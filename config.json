@@ -24,7 +24,7 @@
             "window_dim_1":64,
             "window_dim_2":32
         },
-        "load_all_ram":"True"
+        "load_all_ram":true
     },
     "postprocessing":{
         "input_location":"/data/output/02_blob_detection/output/",
@@ -37,7 +37,7 @@
         "output_location":"/data/output/04_atlas_alignment/output/",
         "mBrainAligner_location":"/delivr/mbrainaligner/",
         "collection_folder":"/data/output/04_atlas_alignment/collection/",
-        "parallel_processing":"True"
+        "parallel_processing":true
     },
     "region_assignment":{
         "input_location":"/data/output/04_atlas_alignment/collection/",
