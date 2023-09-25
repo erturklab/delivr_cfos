@@ -41,12 +41,12 @@ def create_nifti_seg(
     #save activated network output as npy, then re-read
     #optional
     if network_output_file is not None:
-        activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=original_stack_shape.shape[1:])
+        activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=original_stack_shape[1:])
     
     #save binarized network output as npy, then re-read
     #np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
     #binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
-    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=original_stack_shape.shape[1:])    
+    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=original_stack_shape[1:])    
 
     #note that the input_image is only used for re-generating the mask (for re-masking the binaries, this reduces edge effects at the edge of the mask)
 
