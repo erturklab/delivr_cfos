@@ -316,7 +316,7 @@ def run_inference(
 
     # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")
-    if settings["FLAGS"]["SAVE_ACTIVATED_OUTPUTS"]: 
+    if settings["FLAGS"]["SAVE_ACTIVATED_OUTPUT"]: 
         network_output_file = os.path.join(binaries_path,"network_output.npy")
     else:
         network_output_file = None
