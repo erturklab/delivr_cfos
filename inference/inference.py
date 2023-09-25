@@ -34,23 +34,24 @@ def create_nifti_seg(
     model_output,
     output_file,
     network_output_file,
-    dataset
+    dataset,
+    original_stack_shape
 ):
     
     #save activated network output as npy, then re-read
-    #np.save(network_output_file,np.zeros(shape=model_output.shape[1:], dtype=np.float32))
-    #activated_outputs = np.memmap(network_output_file,mode='w+',dtype=np.float32,shape=model_output.shape[1:])
-    activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=model_output.shape[1:])
+    #optional
+    if network_output_file is not None:
+        activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=original_stack_shape.shape[1:])
     
     #save binarized network output as npy, then re-read
     #np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
     #binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
-    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])    
+    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=original_stack_shape.shape[1:])    
 
     #note that the input_image is only used for re-generating the mask (for re-masking the binaries, this reduces edge effects at the edge of the mask)
 
     #construct iterator over output_image array. Tweak buffer size for larger blocks
-    img_iterator = np.lib.Arrayterator(model_output[0,0,:,:,:], 1000**3)
+    img_iterator = np.lib.Arrayterator(model_output[0,0,:original_stack_shape[2],:original_stack_shape[3],:original_stack_shape[4]], 1000**3)
     
     #construct indices for placing the resulting values back
     idx = [0,0,0]
@@ -64,8 +65,11 @@ def create_nifti_seg(
         #apply sigmoid function to subarray
         subarr = torch.as_tensor(subarr,dtype=torch.float)
         sigmoid = (subarr[:, :, :].sigmoid()).detach().cpu().numpy()  
-        #export to activated_outputs array
-        activated_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
+        
+        #optional: export to activated_outputs array
+        if network_output_file is not None:
+            activated_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
+    
         #threshold for binarization 
         thresholded_sigmoid = sigmoid >= threshold
         #re-generate mask, erode it, and re-mask the binaries 
@@ -83,7 +87,10 @@ def create_nifti_seg(
         old_idx = idx
     
     #ensure exported arrays are written to disk 
-    activated_outputs.flush()
+    try:
+        activated_outputs.flush()
+    except:
+        pass
     binarized_outputs.flush()
 
 
@@ -95,9 +102,6 @@ def create_empty_memmap (file_location, shape,dtype=np.uint16,return_torch=True,
     except:
         pass
     #save empty np array on disk 
-    #np.save(file_location,np.zeros(shape=shape, dtype=dtype))
-    #now re-read from disk as memmap (saving RAM)
-    #empty_memmap = np.memmap(file_location,mode='w+',dtype=dtype,shape=shape)
     empty_memmap = np.lib.format.open_memmap(file_location,mode='w+',dtype=dtype,shape=shape)
     if return_torch:
         empty_memmap = torch.as_tensor(empty_memmap,dtype=torch_dtype)
@@ -286,9 +290,10 @@ def run_inference(
                 #create an empty count map again
                 inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
 
-                
+                    
     #do averaging block-wise as arrays from disk - runs with RAM < 2x input image as well 
     #construct iterator over output_image array. Tweak buffer size for larger blocks
+    print("inference done, running block-wise averaging")
     ouput_iterator = np.lib.Arrayterator(output_image[0,0,:,:,:], 1000**3)
     #construct indices for placing the resulting values back
     idx = [0,0,0]
@@ -304,31 +309,25 @@ def run_inference(
         output_image[0,0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = subarr
         #update index 
         old_idx = idx
-    
-    #crop resulting array to original shape
-    original_shape = stack_shape
-    temporary_shape = output_image.shape
-
-    #crop to original dimensions
-    output_image = output_image[:,:,:original_shape[2],:original_shape[3],:original_shape[4]]
-
-    if load_all_ram:
-        #save output on disk because it's been kept only in ram before (will be removed at the end if the flag "SAVE_NETWORK_OUTPUT":true is set in config.json
-        np.save(file = os.path.join(output_folder, comment,"inference_output.npy"),arr = output_image.numpy())
-
+          
+ 
     #delete the count_map (not required in any case)
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
 
     # generate segmentation npy
     output_file         = os.path.join(binaries_path,"binaries.npy")
-    network_output_file = os.path.join(binaries_path,"network_output.npy")
+    if settings["FLAGS"]["SAVE_ACTIVATED_OUTPUTS"]: 
+        network_output_file = os.path.join(binaries_path,"network_output.npy")
+    else:
+        network_output_file = None
 
     create_nifti_seg(
         threshold=threshold,
         model_output=output_image,
         output_file=output_file,
         network_output_file=network_output_file,
-        dataset=dataset
+        dataset=dataset,
+        original_stack_shape = stack_shape
     )
 
     print("end:", time.strftime("%Y-%m-%d_%H-%M-%S"))

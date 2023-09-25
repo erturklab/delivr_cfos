@@ -63,6 +63,7 @@
         "VISUALIZATION":true,
         "SAVE_MASK_OUTPUT":true,
         "SAVE_NETWORK_OUTPUT":true,
+        "SAVE_ACTIVATED_OUTPUT":false,
         "SAVE_POSTPROCESSING_OUTPUT":true,
         "SAVE_ATLAS_OUTPUT":true
     }

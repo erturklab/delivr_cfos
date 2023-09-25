@@ -194,7 +194,7 @@ def sliding_window_inference(
         #skip computing if this tile is background (as filtered and set to 0 by the mask_detection step)
         if window_data.max() == 0:
             seg_prob=torch.ones_like(window_data)
-            seg_prob = seg_prob*-10
+            seg_prob = seg_prob*-1000
             #cast the results back to float16 
             seg_prob = seg_prob.to(torch.float16).to(device)
 
