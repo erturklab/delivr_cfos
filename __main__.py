@@ -211,7 +211,6 @@ if __name__ == "__main__":
         for brain_i, brain_item in enumerate(brain_list):
             print(brain_item)
             stack_shape = get_real_size(os.path.join(settings["raw_location"], brain_item[0]))
-            #stack_shape = (715, 6656, 5616)
             stack_shape = (1,1,*stack_shape)
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(brain_list)}")
             blob_highlighter(settings, brain_item,stack_shape)
