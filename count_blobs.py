@@ -61,7 +61,7 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
         N = int(path_cached_brain.split("/")[-1].split("-")[1])
         print(f"Cached brain found at {path_cached_brain} with {N} components, loading...")
         #labels = read_nifti(path_cached_brain)
-        labels = np.load(path_cached_brains)
+        labels = np.load(path_cached_brain)
         
     # if not os.path.exists(os.path.join(path_out, brain + "-cc3d.nii.gz")):
     # labels, N = cc3d.connected_components(x, return_N=True)
