@@ -46,7 +46,7 @@
         "output_location":"/data/output/05_region_assignment/"
     },
     "visualization":{
-        "input_csv_location":       "/data/output/04_atlas_alignment/collection/",
+        "input_csv_location":       "/data/output/05_region_assignment/",
         "input_size_location":      "/data/output/03_postprocessing/output/",
         "input_prediction_location":"/data/output/02_blob_detection/output/",
         "cache_location":           "/data/output/06_visualization/cache/",
