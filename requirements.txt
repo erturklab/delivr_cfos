@@ -1,4 +1,4 @@
-connected-components-3d==3.10.0
+connected-components-3d==3.12.3
 monai==1.2.0
 nibabel==3.2.1
 numpy==1.24.4
