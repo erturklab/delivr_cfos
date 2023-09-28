@@ -241,6 +241,11 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
 #=== Main function body === 
 #if __name__ == '__main__': 
 def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_list,target_folder,hookoverall,hookfactor):
+    '''
+    takes cell coordinates in CCF3 atlas space and assigns brain regions to them, then summarizes in tables and heatmaps.
+    '''
+
+    print(f"{datetime.datetime.now()} : Setting up region assignment parameters")
     #create a heatmap collection 
     heatmap_collection = {}
 
@@ -306,9 +311,10 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_
         tifffile.imwrite(os.path.join(target_folder,"heatmap_" + mouse_name + ".tif"),heatmap.astype("float"),compression='lzw')
         #add to heatmap collection
         heatmap_collection[mouse_name] = heatmap
+        print(f"{datetime.datetime.now()} : Mouse {mouse_name} region table and heatmap generated")
     
     
-    
+    print(f"{datetime.datetime.now()} : All mice processed, generating summary tables")    
     ##at the end, save the collection table 
     #replace all empty cells with 0 (after all, we checked and could not identify any cells there)
     collection_region_table = collection_region_table.fillna(0)
@@ -325,22 +331,3 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_
     ####load again with the following command. note the 'rb'at the end. 
     ###blub = pickle.load(open('/path/to/heatmap_collection.pickledump','rb'))
     
-    '''
-    #define lists 
-    mouse_list = list(heatmap_collection.keys())
-    c26_list = mouse_list[0:6]
-    nc26_list = mouse_list[6:12]
-    pbs_list = mouse_list[12:]
-    group_list = [c26_list,nc26_list,pbs_list]
-    
-    for group in group_list:
-        #create empty heatmap
-        heatmap_avg = np.zeros(shape=LabelImage.shape)
-        for mouse in group:
-            heatmap_avg = np.add(heatmap_avg,heatmap_collection[mouse])
-        #divide by number of mice to normalize 
-        heatmap_avg = heatmap_avg/len(group)
-        heatmap_avg = heatmap_avg.astype('float32')
-        #save heatmap 
-        tifffile.imwrite(os.path.join(target_folder,"heatmap_average_" + group[0] + ".tif"),heatmap_avg.astype("float"),compression='lzw')
-    '''

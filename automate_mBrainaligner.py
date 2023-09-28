@@ -16,6 +16,7 @@ import multiprocessing as mp
 import numpy as np
 import more_itertools
 import subprocess
+import datetime
 
 def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
@@ -408,6 +409,7 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     mBrainAligner_location = the location of the mBrainAligner files, i.e. D:/MoritzNegwer/Documents/mBrainAligner
      
     '''
+    print(f"{datetime.datetime.now()} : Setting up atlas alignment parameters")
     entry_folder = entry.split("/")[-1].replace(".csv","")
     brain = ("_").join(entry_folder.split("_")[1:])
     orientation = entry_folder.split("_")[0]
@@ -431,15 +433,6 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     mouse_name = brain #os.path.split(entry)[1][:9]
     
     #define output dir and try to ceeate it. If it already exists, skip creation (and subsequently overwrite contents)
-    #TODO Define output dir directly in input
-    '''
-    output_dir = settings["atlas_alignment"]["output_location"]
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    output_dir = os.path.join(output_dir, mouse_name)
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
-    '''
     output_dir = os.path.join(settings["atlas_alignment"]["output_location"], mouse_name)
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
@@ -447,20 +440,16 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     if not os.path.exists(aligned_results_folder):
         os.makedirs(aligned_results_folder)
     
-    # output_dir = os.path.join(aligned_results_folder,mouse_name)
-    # try: 
-    #     os.mkdir(output_dir)
-    # except:
-    #     pass    
     print(f"latest_output {latest_output}")
     print(f"Output dir {output_dir}")
 
     mBrainAligner_location = settings["atlas_alignment"]["mBrainAligner_location"]
     
-    
     #run mBrainAligner-to-atlas registration
+    print(f"{datetime.datetime.now()} : Registering brain to atlas using mBrainaligner")
     atlas_align(mBrainAligner_location, source_file,output_dir,mouse_name)
     
+    print(f"{datetime.datetime.now()} : Mapping cell coordinates into atlas space")
     #rewrite swc from Rami's blob swc
     target_swc_file_name_list = rewrite_swc(csv_path, output_dir,XYZ=xyz,parallel_processing=parallel_processing)
     
@@ -474,5 +463,6 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     #re-attach original size column and copy to new 
     reattach_size_and_copy(csv_path,local_swc,mouse_name, output_dir, aligned_results_folder)
 
+    print(f"{datetime.datetime.now()} : Atlas registration finished")
     #return mouse_name so it can be added to the mouse_name list 
     return mouse_name

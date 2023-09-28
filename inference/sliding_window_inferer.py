@@ -248,7 +248,7 @@ def sliding_window_inference(
             output_image[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map * seg_prob[idx - slice_g]
             count_map[:,:,original_idx[0][0]:original_idx[0][1],original_idx[1][0]:original_idx[1][1],original_idx[2][0]:original_idx[2][1]] += importance_map.to(torch.uint8) # directly replaces the values 
 
-    print("finished inference")
+    print(f"{datetime.datetime.now()} : Inference run finished")
 
 def _get_scan_interval(
     image_size: Sequence[int], roi_size: Sequence[int], num_spatial_dims: int, overlap: float

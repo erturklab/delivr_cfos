@@ -5,9 +5,8 @@ import nibabel as nib
 from path import Path
 from tqdm import tqdm
 from skimage.util import view_as_windows
-# import shutil
 import time
-#import psutil
+import datetime
 
 # dl
 import torch
@@ -143,6 +142,8 @@ def run_inference(
 
     see the above function definition for meaningful defaults.
     """
+
+    print(f"{datetime.datetime.now()} : Setting up inference parameters ")
     # ~~<< S E T T I N G S >>~~
     # torch.multiprocessing.set_sharing_strategy("file_system")
 
@@ -157,8 +158,6 @@ def run_inference(
     torch.cuda.empty_cache()
     
     #smartly set sw_batch_size to occupy available VRAM 
-    #available_devices = torch.cuda.device_count()
-    #available_mem = available_devices*torch.cuda.mem_get_info()[0]
     available_mem = np.sum([torch.cuda.mem_get_info(i)[0] for i in range(torch.cuda.device_count())])
     available_mem = int(available_mem*0.95) #safety margin
 
@@ -177,21 +176,6 @@ def run_inference(
         #assemble crop_size
         crop_size = (crop_size_0,crop_size_1,crop_size_2)
 
-    # T R A N S F O R M S
-    # datasets
-    #compute padded size (npy file dimensions should be padded already in downsample_and_mask)
-    stack_shape_pad = list(stack_shape)
-    for idx, dim in enumerate(stack_shape_pad[2:]):
-        stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
-    #dataset = np.pad(dataset_on_disk,((0,0),(0,0),(0,stack_shape_pad[2]),(0,stack_shape_pad[3]),(0,stack_shape_pad[4])))
-    #dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=tuple(stack_shape_pad))
-
-
-    #make sure dataset_on_disk does not stay in RAM, but is only memmapped for downstream size estimations 
-    #del dataset_on_disk
-    #dataset_on_disk = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=stack_shape)
-
     # ~~<< M O D E L >>~~
     model = BasicUNet(
         spatial_dims=3,
@@ -209,7 +193,6 @@ def run_inference(
     #define inferer setting 
     patch_size = crop_size
     
-
     inferer = SlidingWindowInferer(
         roi_size=patch_size,
         sw_batch_size=sw_batch_size,
@@ -227,9 +210,19 @@ def run_inference(
 
     # load
     model.load_state_dict(checkpoint["state_dict"])
-    
+
 
     ### DATA PREP ###
+    print(f"{datetime.datetime.now()} : Loading Data")
+    # datasets
+    # compute padded size (npy file dimensions should be padded already in downsample_and_mask)
+    stack_shape_pad = list(stack_shape)
+    for idx, dim in enumerate(stack_shape_pad[2:]):
+        stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
+
+    #load dataset
+    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=tuple(stack_shape_pad))
+    
     #create output folder if not already present:
     #try to create output folder in case it's not there yet     
     os.makedirs(os.path.join(output_folder, comment), exist_ok=True)
@@ -237,7 +230,6 @@ def run_inference(
     if load_all_ram: 
         #create torch tensors in ram
         output_image = torch.zeros(dataset.shape,dtype=torch.float16)
-        #count_map = torch.zeros(dataset.shape,dtype=torch.uint8)
         count_map = create_empty_memmap (file_location = os.path.join(output_folder, comment ,"count_map.npy"), shape = dataset.shape,dtype=np.float16,return_torch=True,torch_dtype=torch.uint8)
     else:
         #create empty output tensors (memmapped npy underneath), saving ram
@@ -248,23 +240,9 @@ def run_inference(
     print("output_image shape",output_image.shape)
     print("count_map shape",count_map.shape)
 
-    #if already part-way done, load results from disk:
-    #output_image = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"inference_output.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
-    #count_map = torch.as_tensor(np.memmap(os.path.join(output_folder,comment ,"count_map.npy"), mode = 'r+', dtype = np.float16, shape = dataset_on_disk.shape),dtype=torch.float16)
-
     # epoch stuff
-    time_date = time.strftime("%Y-%m-%d_%H-%M-%S")
-    print("start:", time_date)
+    print(f"{datetime.datetime.now()} : Starting inference")
 
-    testing_session_path = Path(
-        os.path.abspath(output_folder + "/" + comment)
-    )
-
-    netouts_path = testing_session_path + "/network_outputs/"
-    os.makedirs(netouts_path, exist_ok=True)
-
-    binaries_path = testing_session_path + "/binary_segmentations/"
-    os.makedirs(binaries_path, exist_ok=True)
 
     # limit batch length?!
     batchLength = 0
@@ -275,7 +253,7 @@ def run_inference(
         #run sliding window inference 
         
         inferer(dataset, model, output_image = output_image, count_map = count_map)
-        #print("first inference finished")           
+        
 
         # test time augmentations
         if tta == True:
@@ -290,10 +268,10 @@ def run_inference(
                 #create an empty count map again
                 inferer(dataset, model, output_image = output_image, count_map = count_map, tta = True, flip_dim = 3)
 
-                    
+
+    print(f"{datetime.datetime.now()} : Inference done, running block-wise averaging")                    
     #do averaging block-wise as arrays from disk - runs with RAM < 2x input image as well 
     #construct iterator over output_image array. Tweak buffer size for larger blocks
-    print("inference done, running block-wise averaging")
     ouput_iterator = np.lib.Arrayterator(output_image[0,0,:,:,:], 1000**3)
     #construct indices for placing the resulting values back
     idx = [0,0,0]
@@ -314,9 +292,19 @@ def run_inference(
     #delete the count_map (not required in any case)
     os.remove(os.path.join(output_folder, comment ,"count_map.npy"))
 
-    # generate segmentation npy
+    print(f"{datetime.datetime.now()} : Creating binarized blob output")
+    #define output folders for binarized / activated outputs 
+    testing_session_path = Path(os.path.abspath(output_folder + "/" + comment))
+
+    # generate a path for binary outputs
+    binaries_path = testing_session_path + "/binary_segmentations/"
+    os.makedirs(binaries_path, exist_ok=True)
     output_file         = os.path.join(binaries_path,"binaries.npy")
+
+    #only generate an activated network output folder if required 
     if settings["FLAGS"]["SAVE_ACTIVATED_OUTPUT"]: 
+        netouts_path = testing_session_path + "/network_outputs/"
+        os.makedirs(netouts_path, exist_ok=True)
         network_output_file = os.path.join(binaries_path,"network_output.npy")
     else:
         network_output_file = None
@@ -330,5 +318,5 @@ def run_inference(
         original_stack_shape = stack_shape
     )
 
-    print("end:", time.strftime("%Y-%m-%d_%H-%M-%S"))
+    print(f"{datetime.datetime.now()} : Blob Detection finished")
     return testing_session_path

@@ -22,21 +22,6 @@ from subprocess import Popen
 from collections import deque
 from subprocess import DEVNULL
 
-
-
-def write_nifti(path,volume):
-    """
-    write_nifti(path,volume)
-    Takes a Numpy volume, converts it to the Nifti1 file format, and saves it to file under
-    the specified path. Taken from Olivers filehandling class
-    """
-    if(path.find(".nii.gz")==-1):
-        path = path + ".nii.gz"
-    affmat = np.eye(4)
-    affmat[0,0] = affmat[1,1] = -1
-    NiftiObject = nib.Nifti1Image(np.swapaxes(volume, 0, 1), affine=affmat)
-    nib.save(NiftiObject, os.path.normpath(path))
-
 def get_real_size(raw_folder):
     z = len([i for i in os.listdir(raw_folder) if ".tif" in i])
     img = cv2.imread(raw_folder + "/" + os.listdir(raw_folder)[0])
@@ -67,14 +52,7 @@ def save_vaa3d(teraconverter_path, item_path, results_path):
             -s=\"{item_path}\" \
             -d=\"{results_path}\"")
     Popen(cmd, shell=True).wait()
-    print(results_path)
-    '''
-    vaa3d_output = os.path.join(results_path, [x for x in os.listdir(results_path) if "RES" in x][0])  # RES (XxYxZ) folder
-    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
-    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
-    vaa3d_output = os.path.join(vaa3d_output, os.listdir(vaa3d_output)[0])
-    # vaa3d_output = os.path.join(vaa3d_output, os.listdir(os.listdir(os.listdir(vaa3d_output)[0])[0])[0])    #00000_0000 -> 000000 -> .raw
-    '''
+    #print(results_path)
     #walk through Terastitcher output and find .raw file 
     for folder, subfolders, files in os.walk(results_path):
         for f in files:
@@ -108,14 +86,6 @@ def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_ma
     ilastik_output_list = sorted(glob.glob(os.path.join(results_folder,'ventricles_zplanes','*.tif')))
     mask = io.concatenate_images(io.imread_collection(ilastik_output_list))
     
-    #cast to 8-bit (should be superfluous)
-    #mask = mask.astype('uint8')
-    
-    #Ilastik exports probabilities mapped between 0 and 255.
-    #thresholding at 128: everything smaller = 0, everything larger = 1
-    #mask[mask < 128] = 0
-    #mask[mask >= 128] = 1
-    
     #save in main folder 
     io.imsave(os.path.join(results_folder,downsampled_name + '_mask.tif'),mask,compression='lzw')
     print(f"{np.min(mask)} {np.mean(mask)} {np.max(mask)}")
@@ -145,32 +115,6 @@ def collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_u
     
     return original_dims, downsampled_dims
     
-def upsample(image : np.array,
-        original_um_x : float,
-        original_um_y : float,
-        original_um_z : float,
-        downsample_um_x : float,
-        downsample_um_y : float,
-        downsample_um_z : float) -> np.array:
-    """
-    Upsamples image based on original values
-    Args:
-        image (np.array) : Downsampled image
-        original_um_x (float) : Original x step
-        original_um_y (float) : Original y step
-        original_um_z (float) : Original z step
-        downsample_um_x (float) : Downsampled x step 
-        downsample_um_y (float) : Downsampled y step
-        downsample_um_z (float) : Downsampled z step
-    Returns:
-        mask_us (np.array) : Upscaled image
-    """
-    x_ratio = downsample_um_x/original_um_x
-    y_ratio = downsample_um_y/original_um_y
-    z_ratio = downsample_um_z/original_um_z
-    mask_us = zoom(image,(z_ratio, y_ratio, x_ratio),output='uint8')
-    return mask_us
-
 def histogram_equalization_8b(stack):
     #equalizes the histogram of a given image stack (as np array) to exclude top/bottom 1% 
     #and stretch the contrast to cover the remaining bits 
@@ -194,8 +138,10 @@ def histogram_equalization_8b(stack):
 # if __name__ == '__main__':
 def downsample_mask(settings, brain):
 
+    print(f"{datetime.datetime.now()} : Defining downsampling folders")
     #stitched images are here 
     raw_location = os.path.join(settings["raw_location"], brain)
+    
     #generate a sorted list of all images 
     raw_image_list = sorted(glob.glob(raw_location+'/*.tif'))
 
@@ -219,7 +165,6 @@ def downsample_mask(settings, brain):
     #split the image list into this many chunks along z
     z_series = np.arange(0,len(raw_image_list),z_ratio)
     
-    #XXX XXX XXX XXX XXX XXX XXX XXX
     #create a new results folder
     results_folder = os.path.join(settings["mask_detection"]["output_location"], brain)
     if results_folder == "":
@@ -229,12 +174,11 @@ def downsample_mask(settings, brain):
     #try to create
     if not os.path.exists(results_folder):
         os.makedirs(results_folder)
-        
+
+    print(f"{datetime.datetime.now()} : Downsampling")
     #create a temporary storage directory for downsampling 
-    #temp_dir = tempfile.TemporaryDirectory() 
     temp_dir = os.path.join(results_folder,"temp_downsampling_cache")
     os.makedirs(temp_dir, exist_ok=True)
-    #XXX XXX XXX XXX XXX XXX XXX XXX
 
     #open multiprocessing pool 
     pool = mp.Pool(processes = int(os.cpu_count()/2))
@@ -254,8 +198,9 @@ def downsample_mask(settings, brain):
     downsampled_list = sorted([os.path.join(temp_dir, file) for file in os.listdir(temp_dir)])
     
     #debug
-    print(downsampled_list)
+    #print(downsampled_list)
     
+    print(f"{datetime.datetime.now()} : Saving downsampled stacks")
     #reassemble images to one big stack 
     downsampled_stack = io.imread_collection(downsampled_list)
     try:
@@ -273,13 +218,12 @@ def downsample_mask(settings, brain):
     #skimage.io generates a 4-dimensional stack, but we need 3 dims 
     downsampled_stack = np.squeeze(downsampled_stack)
 
+    #save as 16-bit and 8-bit tiff 
     io.imsave(os.path.join(results_folder,downsampled_name + '.tif'),downsampled_stack,compression='lzw',check_contrast=False)
     downsampled_stack_8bit = histogram_equalization_8b(downsampled_stack)
     io.imsave(os.path.join(results_folder,downsampled_name + '_8bit.tif'),downsampled_stack_8bit,compression='lzw',check_contrast=False)
 
-
-
-    #save downsampled stack
+    #save downsampled stack as .v3draw
     #Note that Teraconverter requires at least 250 px in all dimensions, so skip if too small 
     #TODO: Pad so that Teraconverter still works (required for atlas alignment)
     #if min(downsampled_stack.shape) > 250:
@@ -297,21 +241,24 @@ def downsample_mask(settings, brain):
     shutil.rmtree(temp_dir)
     
     #run Ilastik 
-    print(results_folder)
-    print(downsampled_name)
-    print(ilastik_path)
-    print(ventricle_masking_ilastik_project)
+    print(f"{datetime.datetime.now()} : Generating downsampled ventricle mask")
+
+    #debug
+    #print(results_folder)
+    #print(downsampled_name)
+    #print(ilastik_path)
+    #print(ventricle_masking_ilastik_project)
     start = datetime.datetime.now()
     downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
     print(f"Downsampled mask: {np.min(downsampled_mask)} {np.max(downsampled_mask)} {downsampled_mask.dtype}")
+
     # Important: Saved masks have propabilities 0 - 255 instead of 0 - 1
     downsampled_mask[downsampled_mask < 125] = 0
     downsampled_mask[downsampled_mask >= 125] = 1
+
     delta = datetime.datetime.now() -start
     print(f"Ilastik: {delta}")
     
-
-
     #make downsampled masked stack
     print(f"Downsampled stack {np.min(downsampled_stack)} {np.max(downsampled_stack)} {downsampled_stack.dtype}")
     downsampled_masked_stack    = downsampled_mask * downsampled_stack
@@ -342,7 +289,7 @@ def downsample_mask(settings, brain):
     delta = datetime.datetime.now() -start
     print(f"Saving downsampled mask as tiff and vaa3d: {delta}")
 
-
+    print(f"{datetime.datetime.now()} : Upsampling mask")
     #define dimension dictionaries 
     original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
     
@@ -390,25 +337,7 @@ def downsample_mask(settings, brain):
     if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
         os.mkdir(os.path.join(results_folder, "masked_niftis"))
     
-    '''
-    masked_nii = deque()
-    for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
-        img = cv2.imread(raw_location + "/" + item, -1)
-        print(f"{item} {i} / {mask_us.shape[0]} MASK {mask_us.shape} RAW {img.shape}")
-        # Mask raw data with upscaled mask
-        img *= mask_us[i,:,:]
-        # Add to final Nifti output
-        masked_nii.append(img)
-        # Save masked raw data
-        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, compression='lzw', check_contrast=False)
-    delta = datetime.datetime.now() - start
-    print(f"Masking: {delta}")
-    '''
-    #reserve memmap on disk, the 2 extra dimensions and dtype=float16 are to prepare for the tensor conversion 
-    #masked_nii = np.zeros(shape=(1,1,*raw_shape), dtype=np.uint16)
-    #np.save(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), masked_nii)
-    #masked_nii = np.memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"),mode='r+',dtype=np.uint16,shape=(1,1,*raw_shape))
-
+    print(f"{datetime.datetime.now()} : Masking raw images")
     #load the crop_size from the settings (default (64,64,32))
     crop_size_0 = settings["blob_detection"]["window_dimensions"]["window_dim_0"]
     crop_size_1 = settings["blob_detection"]["window_dimensions"]["window_dim_1"]
@@ -436,37 +365,6 @@ def downsample_mask(settings, brain):
     delta = datetime.datetime.now() - start
     print(f"Masking: {delta}")
     
-    '''
-    #optional: also save upscaled mask 
-    mask_output_folder = os.path.join(results_folder,'upscaled_mask')
-    #try to create
-    if not os.path.exists(mask_output_folder):
-        os.mkdir(mask_output_folder)
-    #save every z-plane of the upscaled mask as tif
-    for z in range(mask_us.shape[0]):
-        z_plane = mask_us[z,:,:]    
-        io.imsave(os.path.join(mask_output_folder,'mask_upscaled_z_'+str(z).zfill(4)+'.tif'),z_plane,compression='lzw',check_contrast=False)
-    '''
-    '''
-    #delete mask_us from memory to free up RAM
-    del mask_us
-
-    #save the nifti in a folder
-    
-    print("Saving final data as Nifti")
-    start = datetime.datetime.now()
-    if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
-        os.mkdir(os.path.join(results_folder, "masked_niftis"))
-
-    masked_nii = np.array(masked_nii)
-
-    masked_nii = np.swapaxes(masked_nii, 0, -1)
-    masked_nii = np.swapaxes(masked_nii, 0, 1)
-    write_nifti(os.path.join(results_folder, "masked_niftis", "masked_nifti.nii.gz"), masked_nii)
-    delta = datetime.datetime.now() - start
-    print(f"Nifti: {delta}")
-    '''
-
     #remove mask_us from the disk to save space (the rest will be kept if the setting "SAVE_MASK_OUTPUT":true is set in config.json)
     os.remove(os.path.join(results_folder, "mask_us.npy"))
 
