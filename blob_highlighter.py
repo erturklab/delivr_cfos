@@ -13,6 +13,7 @@ from inference.inference import create_empty_memmap
 from skimage.morphology import binary_dilation
 from skimage.draw import ellipsoid
 from skimage import io
+from blob_depthmap import depth_map_blobs
 
 def blob_highlighter(settings, brain_item,stack_shape):
     """Color blobs by their corresponding atlas region
@@ -61,33 +62,33 @@ def blob_highlighter(settings, brain_item,stack_shape):
     stats = cc3d.statistics(labels,no_slice_conversion=True)
     
     #default: make RGB area color-coded output
+    if settings["visualization"]["region_id_rgb"]: 
+        #create temporary red, green, and blue arrays 
+        print(f"{datetime.datetime.now()} : coloring blobs")
+        R_img = np.lib.format.open_memmap(os.path.join(path_cache,"R_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
+        G_img = np.lib.format.open_memmap(os.path.join(path_cache,"G_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
+        B_img = np.lib.format.open_memmap(os.path.join(path_cache,"B_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
 
-    #create temporary red, green, and blue arrays 
-    print(f"{datetime.datetime.now()} : coloring blobs")
-    R_img = np.lib.format.open_memmap(os.path.join(path_cache,"R_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
-    G_img = np.lib.format.open_memmap(os.path.join(path_cache,"G_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
-    B_img = np.lib.format.open_memmap(os.path.join(path_cache,"B_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
+        #iterate cells, color one by one 
+        for cc_id in cell_csv['connected_component_id']:
+            #extract cell (returns empty df if not present) 
+            current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
+            #extract bounding box coordinates 
+            bb = stats['bounding_boxes'][cc_id]
+            #color the positive values inside the BB. 
+            #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
+            R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
+            G_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['green'].to_numpy()
+            B_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['blue'].to_numpy()
 
-    #iterate cells, color one by one 
-    for cc_id in cell_csv['connected_component_id']:
-        #extract cell (returns empty df if not present) 
-        current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
-        #extract bounding box coordinates 
-        bb = stats['bounding_boxes'][cc_id]
-        #color the positive values inside the BB. 
-        #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
-        R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
-        G_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['green'].to_numpy()
-        B_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['blue'].to_numpy()
-
-    #output RGB images 
-    print(f"{datetime.datetime.now()} : Generating RGB tiffs")
-    for z in range(bin_img.shape[0]):
-        zplane_r = R_img[z,:,:]
-        zplane_g = G_img[z,:,:]
-        zplane_b = B_img[z,:,:]
-        zplane_rgb = np.stack((zplane_r,zplane_g,zplane_b))
-        tifffile.imwrite(os.path.join(path_out_rgb,"rgb_z"+str(z).zfill(4)+".tif"),zplane_rgb,compression='lzw')
+        #output RGB images 
+        print(f"{datetime.datetime.now()} : Generating RGB tiffs")
+        for z in range(bin_img.shape[0]):
+            zplane_r = R_img[z,:,:]
+            zplane_g = G_img[z,:,:]
+            zplane_b = B_img[z,:,:]
+            zplane_rgb = np.stack((zplane_r,zplane_g,zplane_b))
+            tifffile.imwrite(os.path.join(path_out_rgb,"rgb_z"+str(z).zfill(4)+".tif"),zplane_rgb,compression='lzw')
 
     #optionally, also save with region_id as gray values 
     print(f"{datetime.datetime.now()} : Generating region_id gray-value tiffs")
@@ -113,6 +114,9 @@ def blob_highlighter(settings, brain_item,stack_shape):
             zplane_region = region_id_img[z,:,:]
             tifffile.imwrite(os.path.join(path_out_region_id,"region_id_"+str(z).zfill(4)+".tif"),zplane_region,compression='lzw')
 
+    #optionally, only map the blobs over their distance from the sample's outside. Useful if there is no atlas at hand (e.g. other organs). 
+    if settings["visualization"]["no_atlas_depthmap"]: 
+        blob_depthmap(settings,brain,stack_shape)
         
     #cleanup
     print(f"{datetime.datetime.now()} : Cleanup")

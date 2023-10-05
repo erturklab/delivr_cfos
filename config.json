@@ -54,7 +54,9 @@
         "input_prediction_location":"/data/output/02_blob_detection/output/",
         "cache_location":           "/data/output/06_visualization/cache/",
         "output_location":          "/data/output/06_visualization/output/",
-        "region_id_grayvalues":     false
+        "region_id_rgb":            true,
+        "region_id_grayvalues":     false,
+        "no_atlas_depthmap":        false
     },
     "FLAGS":{
         "ABSPATHS":false,
