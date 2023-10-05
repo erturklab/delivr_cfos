@@ -243,21 +243,71 @@ def downsample_mask(settings, brain):
     #run Ilastik 
     print(f"{datetime.datetime.now()} : Generating downsampled ventricle mask")
 
-    #debug
-    #print(results_folder)
-    #print(downsampled_name)
-    #print(ilastik_path)
-    #print(ventricle_masking_ilastik_project)
     start = datetime.datetime.now()
-    downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
-    print(f"Downsampled mask: {np.min(downsampled_mask)} {np.max(downsampled_mask)} {downsampled_mask.dtype}")
 
-    # Important: Saved masks have propabilities 0 - 255 instead of 0 - 1
-    downsampled_mask[downsampled_mask < 125] = 0
-    downsampled_mask[downsampled_mask >= 125] = 1
+    #default: use Ilastik to mask out ventricles and outside the brain
+    if settings["mask_detection"]["mask_with_Ilastik"]:
+        downsampled_mask = ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project)
+        print(f"Downsampled mask: {np.min(downsampled_mask)} {np.max(downsampled_mask)} {downsampled_mask.dtype}")
 
-    delta = datetime.datetime.now() -start
-    print(f"Ilastik: {delta}")
+        # Important: Saved masks have propabilities 0 - 255 instead of 0 - 1
+        downsampled_mask[downsampled_mask < 125] = 0
+        downsampled_mask[downsampled_mask >= 125] = 1
+
+        delta = datetime.datetime.now() -start
+        print(f"Ilastik: {delta}")
+
+        #now upscale mask 
+        print(f"{datetime.datetime.now()} : Upsampling mask")
+        #define dimension dictionaries 
+        original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
+        
+        #get the shape of the raw image stack
+        raw_shape = get_real_size(raw_location)
+        print(f"Before upsampling: {downsampled_mask.shape}")
+        print(f"Raw shape {raw_shape}")
+        
+        #calculate ratios for upscaling (this replaces the previously used ratios for downsampling)
+        z_ratio = raw_shape[0] / downsampled_mask.shape[0] 
+        y_ratio = raw_shape[1] / downsampled_mask.shape[1] 
+        x_ratio = raw_shape[2] / downsampled_mask.shape[2] 
+
+        #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
+        start = datetime.datetime.now()
+    
+        print(f"Saving final masked data {mask_us.shape}\n")
+        start = datetime.datetime.now()
+        
+        #directly create a npy file on disk
+        mask_us = np.lib.format.open_memmap(os.path.join(results_folder, "mask_us.npy"), mode='w+', dtype=np.uint8, shape=raw_shape)
+
+        #upscale the mask. Scipy.ndimage.zoom is single-threaded and likely to take a while.  
+        mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output=mask_us,order=2, prefilter=False)   
+        
+        delta = datetime.datetime.now() - start
+        print(f"Zoom: {delta}")
+
+        #mask_us = np.swapaxes(mask_us, 0, 2)
+        
+        print(f"Final shape {mask_us.shape}")
+
+        #fallback for when dimensions don't add up 
+        if mask_us.shape != raw_shape:
+            print("Warning: Dimensions were wrong, swapped mask_us axes 0&1")
+            mask_us = np.squeeze(mask_us)
+            mask_us = np.swapaxes(mask_us, 0, 1)
+
+    # optionally, skip Ilastik ventricle masking and just threshold outside the brain 
+    # Note this is recommended for large datasets >50 GB as otherwise Ilastik mask upscaling will take days 
+    else if settings["mask_detection"]["instead_mask_with_threshold"]:
+        #get threshold value from settings 
+        threshold = settings["mask_detection"]["simple_threshold_value"]
+        threshold = int(threshold)
+
+        #threshold original 16-bit stack
+        downsampled_mask = downsampled_stack > threshold 
+        
+        #done, that's it! 
     
     #make downsampled masked stack
     print(f"Downsampled stack {np.min(downsampled_stack)} {np.max(downsampled_stack)} {downsampled_stack.dtype}")
@@ -289,45 +339,6 @@ def downsample_mask(settings, brain):
     delta = datetime.datetime.now() -start
     print(f"Saving downsampled mask as tiff and vaa3d: {delta}")
 
-    print(f"{datetime.datetime.now()} : Upsampling mask")
-    #define dimension dictionaries 
-    original_dims, downsampled_dims = collect_measurements(original_um_x,original_um_y,original_um_z,downsampled_um_x,downsampled_um_y,downsampled_um_z,raw_location,raw_image_list,downsampled_mask)
-    
-    #get the shape of the raw image stack
-    raw_shape = get_real_size(raw_location)
-    print(f"Before upsampling: {downsampled_mask.shape}")
-    print(f"Raw shape {raw_shape}")
-    
-    #calculate ratios for upscaling (this replaces the previously used ratios for downsampling)
-    z_ratio = raw_shape[0] / downsampled_mask.shape[0] 
-    y_ratio = raw_shape[1] / downsampled_mask.shape[1] 
-    x_ratio = raw_shape[2] / downsampled_mask.shape[2] 
-
-    #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
-    start = datetime.datetime.now()
-    #np.save(os.path.join(results_folder, "mask_us.npy"), np.zeros(shape=raw_shape,dtype=np.uint8))
-    #mask_us = np.memmap(os.path.join(results_folder, "mask_us.npy"), mode='r+', dtype=np.uint8, shape=raw_shape)
-    
-    #directly create a npy file on disk
-    mask_us = np.lib.format.open_memmap(os.path.join(results_folder, "mask_us.npy"), mode='w+', dtype=np.uint8, shape=raw_shape)
-
-    #upscale the mask. Scipy.ndimage.zoom is single-threaded and likely to take a while.  
-    mask_us = zoom(downsampled_mask,(z_ratio, y_ratio, x_ratio),output=mask_us,order=2, prefilter=False)   
-    
-    delta = datetime.datetime.now() - start
-    print(f"Zoom: {delta}")
-
-    #mask_us = np.swapaxes(mask_us, 0, 2)
-    
-    print(f"Final shape {mask_us.shape}")
-
-    #fallback for when dimensions don't add up 
-    if mask_us.shape != raw_shape:
-        print("Warning: Dimensions were wrong, swapped mask_us axes 0&1")
-        mask_us = np.squeeze(mask_us)
-        mask_us = np.swapaxes(mask_us, 0, 1)
-    print(f"Saving final masked data {mask_us.shape}\n")
-    start = datetime.datetime.now()
 
     # Save all tiffs neatly in a folder
     if not os.path.exists(os.path.join(results_folder, "masked_tiffs")):
@@ -353,20 +364,35 @@ def downsample_mask(settings, brain):
     #create a memmapped npy array on disk. This method should be RAM-friendlier than having to create the array in RAM, then saving to disk
     masked_nii = np.lib.format.open_memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), mode='w+', dtype=np.uint16,shape=(1,1,*raw_shape_pad))
 
+    #mask images one-by-one 
     for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
         img = cv2.imread(raw_location + "/" + item, -1)
-        print(f"{item} {i} / {mask_us.shape[0]} MASK {mask_us.shape} RAW {img.shape}")
+    
+        print(f"Masking z_plane {item} {i} / {raw_shape[1]}")        
         # Mask raw data with upscaled mask
-        img *= mask_us[i,:,:]
+        if settings["mask_detection"]["mask_with_Ilastik"]:
+            img *= mask_us[i,:,:]
+
+        #alternatively, just set everything below threshold to 0
+        else if settings["mask_detection"]["instead_mask_with_threshold"]:
+            threshold = settings["mask_detection"]["simple_threshold_value"]
+            threshold = int(threshold)
+            img[img < threshold] = 0
+
         # Add to final Npy output
         masked_nii[0,0,i,0:raw_shape[1],0:raw_shape[2]] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
+
         # Save masked raw data
-        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, compression='lzw', check_contrast=False)
+        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, compression='lzw', check_contrast=False)     
+
     delta = datetime.datetime.now() - start
     print(f"Masking: {delta}")
     
     #remove mask_us from the disk to save space (the rest will be kept if the setting "SAVE_MASK_OUTPUT":true is set in config.json)
-    os.remove(os.path.join(results_folder, "mask_us.npy"))
+    try: 
+        os.remove(os.path.join(results_folder, "mask_us.npy"))
+    except:
+        pass
 
     #return name of the mouse brain and its original shape 
     return brain,masked_nii.shape

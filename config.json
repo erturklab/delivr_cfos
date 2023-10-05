@@ -13,7 +13,10 @@
             "downsample_um_x":25.0,
             "downsample_um_y":25.0,
             "downsample_um_z":25.0
-        }
+        },
+        "mask_with_Ilastik":true,
+        "instead_mask_with_threshold":false,
+        "simple_threshold_value":250
     },
     "blob_detection":{
         "input_location":"/data/output/01_mask_detection/output/",
@@ -50,7 +53,8 @@
         "input_size_location":      "/data/output/03_postprocessing/output/",
         "input_prediction_location":"/data/output/02_blob_detection/output/",
         "cache_location":           "/data/output/06_visualization/cache/",
-        "output_location":          "/data/output/06_visualization/output/"
+        "output_location":          "/data/output/06_visualization/output/",
+        "region_id_grayvalues":     false
     },
     "FLAGS":{
         "ABSPATHS":false,

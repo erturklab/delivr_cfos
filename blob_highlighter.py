@@ -32,11 +32,11 @@ def blob_highlighter(settings, brain_item,stack_shape):
     path_cache          = settings["visualization"]["cache_location"] #"/data/output/06_visualization/cache/"
     
     #add the brain name to the     
-    path_out = os.path.join(path_out,brain,brain+"_rgb_tiffs")
+    path_out_rgb = os.path.join(path_out,brain,brain+"_rgb_tiffs")
     path_cache = os.path.join(path_cache,brain)
     
     try:
-        os.makedirs(path_out,exist_ok=True)
+        os.makedirs(path_out_rgb,exist_ok=True)
         os.makedirs(path_cache,exist_ok=True)
     except:
         pass
@@ -60,6 +60,8 @@ def blob_highlighter(settings, brain_item,stack_shape):
     labels, N = cc3d.connected_components(bin_img, return_N=True)
     stats = cc3d.statistics(labels,no_slice_conversion=True)
     
+    #default: make RGB area color-coded output
+
     #create temporary red, green, and blue arrays 
     print(f"{datetime.datetime.now()} : coloring blobs")
     R_img = np.lib.format.open_memmap(os.path.join(path_cache,"R_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
@@ -79,13 +81,38 @@ def blob_highlighter(settings, brain_item,stack_shape):
         B_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['blue'].to_numpy()
 
     #output RGB images 
-    print(f"{datetime.datetime.now()} : Generating tiffs")
+    print(f"{datetime.datetime.now()} : Generating RGB tiffs")
     for z in range(bin_img.shape[0]):
         zplane_r = R_img[z,:,:]
         zplane_g = G_img[z,:,:]
         zplane_b = B_img[z,:,:]
         zplane_rgb = np.stack((zplane_r,zplane_g,zplane_b))
-        tifffile.imwrite(os.path.join(path_out,"rgb_z"+str(z).zfill(4)+".tif"),zplane_rgb,compression='lzw')
+        tifffile.imwrite(os.path.join(path_out_rgb,"rgb_z"+str(z).zfill(4)+".tif"),zplane_rgb,compression='lzw')
+
+    #optionally, also save with region_id as gray values 
+    print(f"{datetime.datetime.now()} : Generating region_id gray-value tiffs")
+    if settings["visualization"]["region_id_grayvalues"]: 
+        #create another output folder 
+        path_out_region_id = os.path.join(path_out,brain,brain+"_region_id_tiffs")
+        try:
+            os.makedirs(path_out_region_id,exist_ok=True)
+        except:
+            pass 
+        #create temporary 16-bit gray value npy file in cache dir 
+        region_id_img = np.lib.format.open_memmap(os.path.join(path_cache,"region_id_img.npy"),mode='w+',dtype=np.uint16,shape=stack_shape[2:])
+        #iterate through the list and color-code 
+        for cc_id in cell_csv['connected_component_id']:
+            #extract cell (returns empty df if not present) 
+            current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
+            #extract bounding box coordinates 
+            bb = stats['bounding_boxes'][cc_id]
+            #color the positive values inside the BB. 
+            #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
+            region_id_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]].astype(np.uint16) * current_cell['graph_order'].to_numpy()
+        for z in range(bin_img.shape[0]):
+            zplane_region = region_id_img[z,:,:]
+            tifffile.imwrite(os.path.join(path_out_region_id,"region_id_"+str(z).zfill(4)+".tif"),zplane_region,compression='lzw')
+
         
     #cleanup
     print(f"{datetime.datetime.now()} : Cleanup")
