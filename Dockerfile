@@ -10,6 +10,7 @@ RUN apt-get update
 RUN apt-get upgrade -y
 RUN apt-get install ffmpeg libsm6 libxext6  -y
 RUN apt-get install nano libtiff5 libgomp1 -y
+RUN apt-get install build-essential -y
 RUN apt-get install python3 python3-pip -y
 
 # create working directory

@@ -3,7 +3,7 @@ monai==1.2.0
 nibabel==3.2.1
 numpy==1.24.4
 path==16.2.0
-scikit-image==0.18.1
+scikit-image==0.19.3
 scipy==1.8.1
 pytorch-lightning==2.0.5
 tqdm==4.62.1
