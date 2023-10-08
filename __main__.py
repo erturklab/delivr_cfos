@@ -161,11 +161,11 @@ if __name__ == "__main__":
             #Hook for communicating with Fiji plugin
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(os.listdir(path_in))}")
             #get shape of the image stack
-            try:
-                stack_shape  = mouse_list['mouse_id'==brain]['stack_shape']
-            except:
-                stack_shape = get_real_size(os.path.join(settings["raw_location"], brain))
-                stack_shape = (1,1,*stack_shape)
+            #try:
+            #    stack_shape  = mouse_list['mouse_id'==brain]['stack_shape']
+            #except:
+            stack_shape = get_real_size(os.path.join(settings["raw_location"], brain))
+            stack_shape = (1,1,*stack_shape)
             count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size, max_size)
 
     # Atlas alignment

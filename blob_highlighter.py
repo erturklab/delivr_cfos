@@ -43,13 +43,15 @@ def blob_highlighter(settings, brain_item,stack_shape):
         pass
 
     path_brain_binary       = path_binary   + [x for x in os.listdir(path_binary) if brain in x][0] + "/binary_segmentations/binaries.npy"
-    path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if "cells_" + brain in x and ".csv" in x][0]
-    print(path_brain_cell_csv)
 
-    # Load cells, filter out cells annotated as background:
-    print(f"{datetime.datetime.now()} : Loading csv")
-    cell_csv    = pd.read_csv(path_brain_cell_csv,index_col=0)
-    cell_csv = cell_csv.loc[cell_csv["acronym"] != "bgr"]
+    if not settings["visualization"]["no_atlas_depthmap"]: 
+        #if coloring by distance, no atlas is needed (or likely present) 
+        path_brain_cell_csv     = path_cell_csv + [x for x in os.listdir(path_cell_csv) if "cells_" + brain in x and ".csv" in x][0]
+        print(path_brain_cell_csv)
+        # Load cells, filter out cells annotated as background:
+        print(f"{datetime.datetime.now()} : Loading csv")
+        cell_csv    = pd.read_csv(path_brain_cell_csv,index_col=0)
+        cell_csv = cell_csv.loc[cell_csv["acronym"] != "bgr"]
 
     # Load binarized outputs
     print(f"{datetime.datetime.now()} : Loading brain")
@@ -116,8 +118,11 @@ def blob_highlighter(settings, brain_item,stack_shape):
 
     #optionally, only map the blobs over their distance from the sample's outside. Useful if there is no atlas at hand (e.g. other organs). 
     if settings["visualization"]["no_atlas_depthmap"]: 
-        blob_depthmap(settings,brain,stack_shape)
+        depth_map_blobs(settings,brain,stack_shape)
         
     #cleanup
     print(f"{datetime.datetime.now()} : Cleanup")
-    shutil.rmtree(path_cache)
+    try:    
+        shutil.rmtree(path_cache)
+    except:
+        pass

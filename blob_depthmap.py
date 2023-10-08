@@ -128,7 +128,7 @@ def depth_map_blobs(settings, brain,stack_shape):
     #calculate depth map from downsampled masked stack
     print(f"{datetime.datetime.now()} : calculating euclidean distance transform")
     mask_detection_folder = settings["mask_detection"]["output_location"] # e.g. "/data/output/01_mask_detection/output/"
-    downsampled_masked_stack_path = os.path.join(mask_detection_folder,brain,"stack_masked_downsampled.tif") 
+    downsampled_masked_stack_path = os.path.join(mask_detection_folder,brain,"downsampled_masked_stack.tif") 
 
     #get measurements from settings 
     original_dims_x = settings["mask_detection"]["downsample_steps"]["original_um_x"]
@@ -182,6 +182,9 @@ def depth_map_blobs(settings, brain,stack_shape):
 
     #cleanup
     print(f"{datetime.datetime.now()} : Cleanup")
-    shutil.rmtree(path_cache)
+    try:
+        shutil.rmtree(path_cache)
+    except:
+        pass
 
     

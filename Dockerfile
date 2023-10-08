@@ -5,6 +5,8 @@
 #FROM ubuntu:22.04
 FROM nvidia/cuda:11.7.1-runtime-ubuntu22.04
 
+RUN useradd -ms /bin/bash delivr
+
 #install updates
 RUN apt-get update 
 RUN apt-get upgrade -y
@@ -60,5 +62,6 @@ RUN chmod +x ./mbrainaligner/examples/swc_registration/binary/linux_bin/swc_regi
 RUN chmod +x ./mbrainaligner/binary/linux_bin/global_registration
 RUN chmod +x ./mbrainaligner/binary/linux_bin/local_registration
 
+USER delivr
 
 
