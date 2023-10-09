@@ -15,6 +15,13 @@ from skimage.draw import ellipsoid
 from skimage import io
 from blob_depthmap import depth_map_blobs
 
+def pad_bb(bb,stack_shape):
+    #expand bounding box (bb, from cc3d.statistics) ends (elements 1,3,5) by 1, except when close to the image border
+    if bb[1] < stack_shape[2]: bb[1] += 1 
+    if bb[3] < stack_shape[3]: bb[3] += 1
+    if bb[5] < stack_shape[4]: bb[5] += 1 
+    return bb
+
 def blob_highlighter(settings, brain_item,stack_shape):
     """Color blobs by their corresponding atlas region
     """
@@ -60,8 +67,10 @@ def blob_highlighter(settings, brain_item,stack_shape):
     
     #calculate cc3d statistics (no caching needed because thanks to no_slice_conversion it's fast)
     print(f"{datetime.datetime.now()} : calculating connected-component analysis")
-    labels, N = cc3d.connected_components(bin_img, return_N=True)
+    temp_cc3d_output_path =  os.path.join(path_cache+"temp_cc3d_store.npy")
+    labels, N = cc3d.connected_components(bin_img, return_N=True,out_file = temp_cc3d_output_path)
     stats = cc3d.statistics(labels,no_slice_conversion=True)
+    os.remove(temp_cc3d_output_path) 
     
     #default: make RGB area color-coded output
     if settings["visualization"]["region_id_rgb"]: 
@@ -77,6 +86,7 @@ def blob_highlighter(settings, brain_item,stack_shape):
             current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
             #extract bounding box coordinates 
             bb = stats['bounding_boxes'][cc_id]
+            bb = pad_values(bb)
             #color the positive values inside the BB. 
             #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
             R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
@@ -109,6 +119,7 @@ def blob_highlighter(settings, brain_item,stack_shape):
             current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
             #extract bounding box coordinates 
             bb = stats['bounding_boxes'][cc_id]
+            bb = pad_bb(bb, stack_shape)
             #color the positive values inside the BB. 
             #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
             region_id_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]].astype(np.uint16) * current_cell['graph_order'].to_numpy()

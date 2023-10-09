@@ -91,7 +91,12 @@ def calculate_mask_distance(root_dir,spacing=(1,1,1),collection_dir=None,intensi
     except:
         pass
 
-
+def pad_bb(bb,stack_shape):
+    #expand bounding box (bb, from cc3d.statistics) ends (elements 1,3,5) by 1, except when close to the image border
+    if bb[1] < stack_shape[2]: bb[1] += 1 
+    if bb[3] < stack_shape[3]: bb[3] += 1
+    if bb[5] < stack_shape[4]: bb[5] += 1 
+    return bb
 
 
 def depth_map_blobs(settings, brain,stack_shape):
@@ -122,8 +127,10 @@ def depth_map_blobs(settings, brain,stack_shape):
     
     #calculate cc3d statistics (no caching needed because thanks to no_slice_conversion it's fast)
     print(f"{datetime.datetime.now()} : calculating connected-component analysis")
+    temp_cc3d_output_path =  os.path.join(path_cache+"temp_cc3d_store.npy")
     labels, N = cc3d.connected_components(bin_img, return_N=True)
-    stats = cc3d.statistics(labels,no_slice_conversion=True)        
+    stats = cc3d.statistics(labels,no_slice_conversion=True)
+    os.path.join(path_cache+"temp_cc3d_store.npy")        
 
     #calculate depth map from downsampled masked stack
     print(f"{datetime.datetime.now()} : calculating euclidean distance transform")
@@ -170,6 +177,7 @@ def depth_map_blobs(settings, brain,stack_shape):
         current_cell_depth = distances[current_cell[0],current_cell[1],current_cell[2]]
         #extract bounding box coordinates 
         bb = stats['bounding_boxes'][cc_id]
+        bb = pad_bb(bb, stack_shape)
         #color the positive values inside the BB. 
         #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
         depthmap_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]].astype(np.uint16) * current_cell_depth
