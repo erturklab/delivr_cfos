@@ -70,7 +70,7 @@ def save_vaa3d(teraconverter_path, item_path, results_path):
 
 def ilastik_ventricles(results_folder,downsampled_name,ilastik_path,ventricle_masking_ilastik_project):
     #runs Ilastik as command line tool 
-    
+    print(f"{datetime.datetime.now()} : starting Ilastik")
     #assemble command 
     cmd = str(os.path.join(ilastik_path,'run_ilastik.sh')
               + ' --headless '
