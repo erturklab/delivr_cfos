@@ -98,6 +98,19 @@ def pad_bb(bb,stack_shape):
     if bb[5] < stack_shape[4]: bb[5] += 1 
     return bb
 
+def load_cached_stats(settings, brain):
+    """ 
+    Check if we already performed a costly connected component statistics analysis
+    If so, return the name of the file 
+    Else, return False
+    """
+    path_in = settings["postprocessing"]["output_location"]
+    result = False
+    for item in [x for x in os.listdir(path_in) if ".pickle" in x]:
+        if brain in item:
+            result = os.path.join(path_in, item)  
+    return result
+
 
 def depth_map_blobs(settings, brain,stack_shape):
     #define input folder for cc3d 
@@ -128,9 +141,20 @@ def depth_map_blobs(settings, brain,stack_shape):
     #calculate cc3d statistics (no caching needed because thanks to no_slice_conversion it's fast)
     print(f"{datetime.datetime.now()} : calculating connected-component analysis")
     temp_cc3d_output_path =  os.path.join(path_cache+"temp_cc3d_store.npy")
-    labels, N = cc3d.connected_components(bin_img, return_N=True)
-    stats = cc3d.statistics(labels,no_slice_conversion=True)
-    os.path.join(path_cache+"temp_cc3d_store.npy")        
+    if not load_cached_stats(settings, brain):
+        temp_cc3d_output_path = os.path.join(path_cache+"temp_cc3d_store.npy") 
+        if settings["blob_detection"]["load_all_ram"]:
+            #process in RAM if the flag indicates that sufficient space is available (2x dataset size)
+            labels, N = cc3d.connected_components(bin_img, return_N=True) 
+        else:
+            #otherwise, process on disk. This is recommended for 
+            labels, N = cc3d.connected_components(bin_img, return_N=True,out_file=temp_cc3d_output_path) 
+        stats = cc3d.statistics(labels,no_slice_conversion=True)
+    else: 
+        path_stats = load_cached_stats(settings, brain) 
+        print(f"Found stats at {path_stats}") 
+        with open(path_stats, "rb") as file: 
+            stats = pickle.load(file)
 
     #calculate depth map from downsampled masked stack
     print(f"{datetime.datetime.now()} : calculating euclidean distance transform")

@@ -50,15 +50,24 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
     #x = np.swapaxes(x, 0, -1)
     mid2 = datetime.datetime.now()
     #print(f"{mid2} Swapping axes took {mid2 - mid} : {x.shape}")
+
     #temporarily store cc3d output
     temp_cc3d_output_path =  os.path.join(path_out,brain+"temp_cc3d_store.npy")
 
     if not load_cached_brain(settings, brain):
         print("No cached brain found, performing cc3d...")
-        labels, N = cc3d.connected_components(x, return_N=True,out_file = temp_cc3d_output_path)
-         #write_nifti(os.path.join(path_out, f"{brain}-{N}-cc3d.nii.gz"), labels)
+        if settings["blob_detection"]["load_all_ram"]:
+            #process in RAM if the flag indicates that sufficient space is available (2x dataset size)
+            labels, N = cc3d.connected_components(bin_img, return_N=True) 
+        else:
+            #otherwise, process on disk. This is recommended for 
+            labels, N = cc3d.connected_components(bin_img, return_N=True,out_file=temp_cc3d_output_path) 
         np.save(os.path.join(path_out, f"{brain}-{N}-cc3d.npy"), labels)
-        os.remove(temp_cc3d_output_path) 
+        try:
+            os.remove(temp_cc3d_output_path) 
+        except:
+            pass
+
     else:
         path_cached_brain = load_cached_brain(settings, brain)
         N = int(path_cached_brain.split("/")[-1].split("-")[1])
