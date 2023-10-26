@@ -1,4 +1,5 @@
 # DELiVR: A VR enabled, deep learning based cFos inference pipeline
+![DELIVR overview](/images/delivr_overview.png)
 ## Table of contents
 - [Introduction](#introduction)
 - [Requirements](#requirements)
@@ -7,7 +8,6 @@
 ## Introduction
 Repository of the publication ["Virtual reality empowered deep learning analysis of brain activity"](https://doi.org/10.1101/2023.05.18.540970).
 This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://ww.docker.com) for plattform independet execution.
-![Pipeline overview](/images/pipeline.png)
 ## Requirements
 ### Python requirements
 Python 3.8 on Linux for downsampling, masking, upsampling 
@@ -65,6 +65,7 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 - `FLAGS` : currently inactive 
 
 ## Pipeline overview
+![Pipeline overview](/images/pipeline.png)
 ### Downsampling, Masking, Upsampling
 Pseudocode:
 ```python
