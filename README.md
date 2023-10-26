@@ -1,5 +1,6 @@
 # DELiVR: A VR enabled, deep learning based cFos inference pipeline
 ![DELIVR overview](/images/delivr_overview.png "Overview of the DELIVR protocol")
+<figcaption class="caption">Overview of the complete DELIVR protocol. This repository covers all the neccessary steps for inference.</figcaption>
 ## Table of contents
 - [Introduction](#introduction)
 - [Requirements](#requirements)
@@ -7,7 +8,7 @@
 - [Pipeline overview](#pipeline-overview)
 ## Introduction
 Repository of the publication ["Virtual reality empowered deep learning analysis of brain activity"](https://doi.org/10.1101/2023.05.18.540970).
-This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://ww.docker.com) for plattform independet execution.
+This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://discotechnologies.org/DELiVR) for plattform independet execution.
 ## Requirements
 ### Python requirements
 Python 3.8 on Linux for downsampling, masking, upsampling 
@@ -66,8 +67,12 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 
 ## Pipeline overview
 ![Pipeline overview](/images/pipeline.png "Overview of the DELIVR computational pipeline")
+<figcaption class="caption">Overview of the DELIVR computational pipeline. Individual steps are explained below.</figcaption>
 ### Downsampling, Masking, Upsampling
+
 Pseudocode:
+<div style="display: flex; align-items: start;">
+
 ```python
 Artifact Masking
 load stack as stack
@@ -77,6 +82,13 @@ foreach image in stack:
     upscale(image)
 save(stack)
 ```
+
+<figure style="flex-basis: 33%; margin-left: 20px;">
+  <img src="/images/brain_masked.png" alt="Masked brain" width="100%">
+  <figcaption>Visualization of the brain masking step: Ventricles highlighted</figcaption>
+</figure>
+</div>
+
 
 ### Deep Learning inference
 Pseudocode: 
@@ -89,9 +101,9 @@ save(result)
 ```
 
 ### Atlas alignment
-(this requires to manually convert the downsampled stack from tiff to Vaa3d's V3DRAW format. For this, use the most recent version of Vaa3d https://github.com/Vaa3D/release/releases/ )
+Here we convert the downsampled stack from tiff to Vaa3d's V3DRAW format. For this, use the most [recent version of Vaa3d](https://github.com/Vaa3D/release/releases/).
 
-This step also requires mBrainAligner, https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner 
+This step also requires [mBrainAligner](https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner) 
 The pre-compiled swc registration only runs on Windows. 
 
 Pseudocode:
@@ -103,7 +115,7 @@ mBrainAligner_swc_transformation(preprocessed_cell_coordinates, transformation_f
 ```
 
 ### Region Assignment 
-DELiVR uses the Allen Brain Atlas CCF3 adult mouse brain atlas, as provided by the Scalable Brain Atlas https://scalablebrainatlas.incf.org/mouse/ABA_v3 
+DELiVR uses the Allen Brain Atlas CCF3 adult mouse brain atlas, as provided by the [Scalable Brain Atlas](https://scalablebrainatlas.incf.org/mouse/ABA_v3) 
 This step loads the atlas-aligned cell coordinates, assigns a region (and parent region, atlas color, etc) to each of them. It also produces a per-area summary table (cells/ region) and a 3D heatmap in atlas space. 
 
 Pseudocode:
@@ -119,7 +131,7 @@ summarize_heatmaps(all_heatmaps)
 
 
 ### Visualization
-This step requires BrainRender https://github.com/brainglobe/brainrender 
+This step requires [BrainRender](https://github.com/brainglobe/brainrender) 
 
 Pseudocode: 
 ```python
