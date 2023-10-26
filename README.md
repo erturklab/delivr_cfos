@@ -72,6 +72,14 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 
 ### Downsampling, Masking, Upsampling
 
+| Python Code                             | Image                |
+|-----------------------------------------|------------------------------------------------------------------------------|
+|```python                               | <img src="/images/brain_masked.png" alt="Masked brain" width="100%"> |
+| Artifact masking             | Visualization of the result of the masking step: The highlighted ventricles are cut out.|
+| print("Test")               |                      |
+|```                                    |                      |
+
+
 <div style="display: flex;">
 
 <div style="flex: 2;">
