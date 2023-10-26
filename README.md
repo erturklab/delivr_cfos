@@ -1,5 +1,5 @@
 # DELiVR: A VR enabled, deep learning based cFos inference pipeline
-![DELIVR overview](/images/delivr_overview.png)
+![DELIVR overview](/images/delivr_overview.png "Overview of the DELIVR protocol")
 ## Table of contents
 - [Introduction](#introduction)
 - [Requirements](#requirements)
@@ -19,10 +19,10 @@ Python 3.8 on Windows for Atlas Alignment
 Python 3.8 on Linux for Visualization
 
 ### ILastik requirements
-We recommend the latest beta version from the official website: https://www.ilastik.org/download.html. We used 1.4.0b26. 
+We recommend the latest beta version from the [official website](https://www.ilastik.org/download.html). We used [1.4.0b8](https://files.ilastik.org/ilastik-1.4.0b8-Linux.tar.bz2). 
 
 ### TeraConverter requirements
-We recommend the latest portable version from the offical website: https://github.com/abria/TeraStitcher/wiki/Binary-packages#terastitcher-portable-no-gui--only-command-line-tools. we used 1.11.10.
+We recommend the latest portable version from the [offical website](https://github.com/abria/TeraStitcher/wiki/Binary-packages#terastitcher-portable-no-gui--only-command-line-tools). We used 1.11.10.
 
 ### File requirements
 We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 1.62 x 1.62 x 6 µm (x/y/z/) voxel size. 
@@ -31,9 +31,9 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
 3. Set the location of your raw data and ilastik installation path in `config.json`
-4. Download and install mBrainAligner https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner (Note that the pre-compiled swc registration only runs on Windows). Set the path in the config.json under `mBrainAligner location`
-5. Download and install Ilastik (latest beta) https://www.ilastik.org/download.html. Set the path in the config.json under `ilastik_location`. 
-6. (Optional: Download the test raw data from this dropbox link (50 Gb total) and extract the tiff files into `/data/raw/`: https://www.dropbox.com/sh/ylm4hpk90uts74l/AAAJFlvLI0U-VGSyUmC_9gcoa?dl=0)
+4. Download and install [mBrainAligner](https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner) (Note that the pre-compiled swc registration only runs on Windows). Set the path in the config.json under `mBrainAligner location`
+5. Download and install Ilastik [(latest beta)](https://www.ilastik.org/download.html). Set the path in the config.json under `ilastik_location`. 
+6. (Optional: Download the test raw data from [this dropbox link (50 Gb total)](https://www.dropbox.com/sh/ylm4hpk90uts74l/AAAJFlvLI0U-VGSyUmC_9gcoa?dl=0) and extract the tiff files into `/data/raw/`) 
 7. (If required, download the intermediate results and move them to into `/data/`)
 8. Run `python __main__.py` in the terminal
 
@@ -65,7 +65,7 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 - `FLAGS` : currently inactive 
 
 ## Pipeline overview
-![Pipeline overview](/images/pipeline.png)
+![Pipeline overview](/images/pipeline.png "Overview of the DELIVR computational pipeline")
 ### Downsampling, Masking, Upsampling
 Pseudocode:
 ```python
