@@ -1,5 +1,13 @@
 # DELiVR: A VR enabled, deep learning based cFos inference pipeline
+## Table of contents
+- [Introduction](#introduction)
+- [Requirements](#requirements)
+- [Setup and execution](#setup-and-execution)
+- [Pipeline overview](#pipeline-overview)
 ## Introduction
+Repository of the publication ["Virtual reality empowered deep learning analysis of brain activity"](https://doi.org/10.1101/2023.05.18.540970).
+This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://ww.docker.com) for plattform independet execution.
+![Pipeline overview](/images/pipeline.png)
 ## Requirements
 ### Python requirements
 Python 3.8 on Linux for downsampling, masking, upsampling 
@@ -19,7 +27,7 @@ We recommend the latest portable version from the offical website: https://githu
 ### File requirements
 We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our model is optimized for data acquired with approx. 1.62 x 1.62 x 6 µm (x/y/z/) voxel size. 
 
-## Setup and Execution 
+## Setup and execution 
 1. Clone this repository using `git clone https://github.com/erturklab/deliver_cfos.git`
 2. Install the requirements using `pip install -r requirements.txt` (pip) `conda install --file requirements.txt` (anaconda)
 3. Set the location of your raw data and ilastik installation path in `config.json`
