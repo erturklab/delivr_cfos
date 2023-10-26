@@ -1,6 +1,7 @@
 # DELiVR: A VR enabled, deep learning based cFos inference pipeline
 ![DELIVR overview](/images/delivr_overview.png "Overview of the DELIVR protocol")
 <figcaption class="caption">Overview of the complete DELIVR protocol. This repository covers all the neccessary steps for inference.</figcaption>
+
 ## Table of contents
 - [Introduction](#introduction)
 - [Requirements](#requirements)
@@ -68,11 +69,10 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 ## Pipeline overview
 ![Pipeline overview](/images/pipeline.png "Overview of the DELIVR computational pipeline")
 <figcaption class="caption">Overview of the DELIVR computational pipeline. Individual steps are explained below.</figcaption>
+
 ### Downsampling, Masking, Upsampling
 
 Pseudocode:
-<div style="display: flex; align-items: start;">
-
 ```python
 Artifact Masking
 load stack as stack
@@ -82,12 +82,6 @@ foreach image in stack:
     upscale(image)
 save(stack)
 ```
-
-<figure style="flex-basis: 33%; margin-left: 20px;">
-  <img src="/images/brain_masked.png" alt="Masked brain" width="100%">
-  <figcaption>Visualization of the brain masking step: Ventricles highlighted</figcaption>
-</figure>
-</div>
 
 
 ### Deep Learning inference
