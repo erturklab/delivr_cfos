@@ -71,35 +71,6 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 <figcaption class="caption">Overview of the DELIVR computational pipeline. Individual steps are explained below.</figcaption>
 
 ### Downsampling, Masking, Upsampling
-
-| Python Code                             | Image                |
-|-----------------------------------------|------------------------------------------------------------------------------|
-|```python                               | <img src="/images/brain_masked.png" alt="Masked brain" width="100%"> |
-| Artifact masking             | Visualization of the result of the masking step: The highlighted ventricles are cut out.|
-| print("Test")               |                      |
-|```                                    |                      |
-
-
-<div style="display: flex;">
-
-<div style="flex: 2;">
-    
-```python
-Artifact Masking
-load stack as stack
-stack = downsample(stack)
-foreach image in stack:
-    image = randomForest_model(image)
-    upscale(image)
-save(stack)
-```
-</div>
-<figure style="flex: 1; margin-left: 20px;">
-  <img src="/images/brain_masked.png" alt="Masked brain" width="100%">
-  <figcaption>Visualization of the result of the masking step: The highlighted ventricles are cut out.</figcaption>
-</figure>
-</div>
-
 Pseudocode:
 ```python
 Artifact Masking
