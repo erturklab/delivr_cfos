@@ -1,15 +1,23 @@
+# Mask detection
+openpyxl==3.0.10
+tifffile==2022.4.8
+opencv-python==4.6.0.66
+scikit-image==0.19.3
+scipy==1.8.1
+
+# Postprocessing
 connected-components-3d==3.12.3
+
+# Inference
+pytorch-lightning==2.0.5
+torch==1.9.1+cu111
+-f https://download.pytorch.org/whl/torch_stable.html
+torchvision==0.10.1+cu111
 monai==1.2.0
+
+# Utils
+tqdm==4.62.1
 nibabel==3.2.1
 numpy==1.24.4
 path==16.2.0
-scikit-image==0.19.3
-scipy==1.8.1
-pytorch-lightning==2.0.5
-tqdm==4.62.1
-nibabel==3.2.1
-path==16.2.0
-opencv-python==4.6.0.66
 pandas==1.4.3
-tifffile==2022.4.8
-openpyxl==3.0.10
