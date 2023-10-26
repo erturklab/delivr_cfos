@@ -276,7 +276,7 @@ def downsample_mask(settings, brain):
         #upscale the mask (this may take quite a bit, order=2 should be a bit faster than default order=3)
         start = datetime.datetime.now()
     
-        print(f"Saving final masked data {mask_us.shape}\n")
+        print(f"Saving final masked data {raw_shape}\n")
         start = datetime.datetime.now()
         
         #directly create a npy file on disk
