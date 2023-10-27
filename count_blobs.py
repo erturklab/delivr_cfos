@@ -56,7 +56,7 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
 
     if not load_cached_brain(settings, brain):
         print("No cached brain found, performing cc3d...")
-        if settings["blob_detection"]["load_all_ram"]:
+        if settings["FLAGS"]["LOAD_ALL_RAM"]:
             #process in RAM if the flag indicates that sufficient space is available (2x dataset size)
             labels, N = cc3d.connected_components(bin_img, return_N=True) 
         else:

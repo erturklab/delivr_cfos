@@ -15,7 +15,6 @@
             "downsample_um_z":25.0
         },
         "mask_with_Ilastik":true,
-        "instead_mask_with_threshold":false,
         "simple_threshold_value":250
     },
     "blob_detection":{
@@ -27,7 +26,7 @@
             "window_dim_1":64,
             "window_dim_2":32
         },
-        "load_all_ram":true
+        
     },
     "postprocessing":{
         "input_location":"/data/output/02_blob_detection/output/",
@@ -60,6 +59,7 @@
     },
     "FLAGS":{
         "ABSPATHS":false,
+        "LOAD_ALL_RAM":true,
         "TEST_TIME_AUGMENTATION":true,
         "MASK_DOWNSAMPLE":true,
         "BLOB_DETECTION":true,

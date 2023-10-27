@@ -143,7 +143,7 @@ def depth_map_blobs(settings, brain,stack_shape):
     temp_cc3d_output_path =  os.path.join(path_cache+"temp_cc3d_store.npy")
     if not load_cached_stats(settings, brain):
         temp_cc3d_output_path = os.path.join(path_cache+"temp_cc3d_store.npy") 
-        if settings["blob_detection"]["load_all_ram"]:
+        if settings["FLAGS"]["LOAD_ALL_RAM"]:
             #process in RAM if the flag indicates that sufficient space is available (2x dataset size)
             labels, N = cc3d.connected_components(bin_img, return_N=True) 
         else:

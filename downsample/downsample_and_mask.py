@@ -300,7 +300,7 @@ def downsample_mask(settings, brain):
 
     # optionally, skip Ilastik ventricle masking and just threshold outside the brain 
     # Note this is recommended for large datasets >50 GB as otherwise Ilastik mask upscaling will take days 
-    elif settings["mask_detection"]["instead_mask_with_threshold"]:
+    else:
         #get threshold value from settings 
         threshold = settings["mask_detection"]["simple_threshold_value"]
         threshold = int(threshold)
@@ -378,7 +378,7 @@ def downsample_mask(settings, brain):
             img *= mask_us[i,:,:]
 
         #alternatively, just set everything below threshold to 0
-        elif settings["mask_detection"]["instead_mask_with_threshold"]:
+        else:
             threshold = settings["mask_detection"]["simple_threshold_value"]
             threshold = int(threshold)
             img[img < threshold] = 0
