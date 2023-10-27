@@ -82,7 +82,7 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
 
     if not load_cached_stats(settings, brain):
         print("No stats found, performing cc3d.statistics...")
-        stats = cc3d.statistics(labels)
+        stats = cc3d.statistics(labels,no_slice_conversion=True)
         path_stats = os.path.join(path_out, f"{brain}-stats.pickle")
         with open(path_stats, "wb") as file:
             pickle.dump(stats, file, protocol=pickle.HIGHEST_PROTOCOL)
