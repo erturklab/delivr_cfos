@@ -25,8 +25,7 @@
             "window_dim_0":64,
             "window_dim_1":64,
             "window_dim_2":32
-        },
-        
+        }
     },
     "postprocessing":{
         "input_location":"/data/output/02_blob_detection/output/",
