@@ -57,9 +57,9 @@ COPY ./terastitcher/TeraStitcher-portable-1.11.10-Linux/ ./teraconverter/
 # Don't forget to download the libraries (lib.tar.xz) and copy them into the mbrainaligner folder: Linux libraries via the google drive link at https://github.com/Vaa3D/vaa3d_tools/tree/master/hackathon/mBrainAligner
 COPY ./2023-01-18_mbrainaligner/ ./mbrainaligner/
 #mbrainaligner: unpack the libraries and copy to /usr/lib
-#RUN tar xvJf ./mbrainaligner/lib.tar.xz -C ./mbrainaligner/ && cp ./mbrainaligner/lib/* /usr/lib
+RUN tar xvJf ./mbrainaligner/lib.tar.xz -C ./mbrainaligner/ && cp ./mbrainaligner/lib/* /usr/lib
 #do the same for the libraries for swc_registration 
-#RUN tar xvJf ./mbrainaligner/examples/swc_registration/binary/linux_bin/lib.tar.xz -C ./mbrainaligner/examples/swc_registration/binary/linux_bin/ && cp ./mbrainaligner/examples/swc_registration/binary/linux_bin/lib/* /usr/lib
+RUN tar xvJf ./mbrainaligner/examples/swc_registration/binary/linux_bin/lib.tar.xz -C ./mbrainaligner/examples/swc_registration/binary/linux_bin/ && cp ./mbrainaligner/examples/swc_registration/binary/linux_bin/lib/* /usr/lib
 #make the mbrainaligner files executable 
 RUN chmod +x ./mbrainaligner/examples/swc_registration/binary/linux_bin/swc_registration
 RUN chmod +x ./mbrainaligner/binary/linux_bin/global_registration
