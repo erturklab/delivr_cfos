@@ -43,8 +43,8 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
     start = datetime.datetime.now()
     print(f"{start} Start {brain} - {brain_i}/{len_b}")
     brain_path = os.path.join(path_in, brain, "binary_segmentations", "binaries.npy")
-    x = dataset_on_disk = np.memmap(brain_path,dtype=np.uint8,mode='r+',shape=stack_shape[1:])
-    x = x[0,:,:,:]
+    bin_img = dataset_on_disk = np.memmap(brain_path,dtype=np.uint8,mode='r+',shape=stack_shape[1:])
+    bin_img = bin_img[0,:,:,:]
     mid = datetime.datetime.now()
     print(f"{mid} Reading took {mid - start}")
     #x = np.swapaxes(x, 0, -1)
@@ -122,7 +122,7 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
                 df = pd.concat([df, df_l])
 
 
-    output_name = f"{x.shape}_{brain.replace('.nii.gz','')}.csv"
+    output_name = f"{bin_img.shape}_{brain.replace('.nii.gz','')}.csv"
     df.to_csv(path_out + output_name)
     end = datetime.datetime.now()
     end_delta = end- start
