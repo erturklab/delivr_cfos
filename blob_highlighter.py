@@ -107,7 +107,7 @@ def blob_highlighter(settings, brain_item,stack_shape):
             current_cell = cell_csv.loc[cell_csv['connected_component_id'] == cc_id]
             #extract bounding box coordinates 
             bb = stats['bounding_boxes'][cc_id]
-            bb = pad_bb(bb)
+            bb = pad_bb(bb,stack_shape)
             #color the positive values inside the BB. 
             #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
             R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
