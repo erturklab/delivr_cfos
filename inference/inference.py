@@ -221,7 +221,7 @@ def run_inference(
         stack_shape_pad[idx+2] = int(np.ceil(dim/crop_size[idx])*crop_size[idx])
 
     #load dataset
-    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=tuple(stack_shape_pad))
+    dataset = np.memmap(niftis[0],dtype=np.uint16,mode='r+',shape=tuple(stack_shape_pad),offset=128)
     
     #create output folder if not already present:
     #try to create output folder in case it's not there yet     

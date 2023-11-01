@@ -75,7 +75,7 @@ def blob_highlighter(settings, brain_item,stack_shape):
 
     # Load binarized outputs
     print(f"{datetime.datetime.now()} : Loading brain")
-    bin_img = np.memmap(path_brain_binary,dtype=np.uint8,mode='r+',shape=stack_shape[1:])
+    bin_img = np.memmap(path_brain_binary,dtype=np.uint8,mode='r+',shape=stack_shape[1:],offset=128)
     bin_img = bin_img[0,:,:,:]
     
     if not load_cached_stats(settings, brain):
