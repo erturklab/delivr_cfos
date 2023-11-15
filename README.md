@@ -72,6 +72,8 @@ Expected installation time: ca 1h for local python install, ca 10 min if using t
 ![Pipeline overview](/images/pipeline.png "Overview of the DELIVR computational pipeline")
 <figcaption class="caption">Overview of the DELIVR computational pipeline. Individual steps are explained below.</figcaption>
 
+For a demo, please see Supplementary Video 5: https://www.discotechnologies.org/DELiVR/Supplementary_Video_5_DELiVR_Demo.mp4
+
 ### Downsampling, Masking, Upsampling
 Pseudocode:
 ```python
