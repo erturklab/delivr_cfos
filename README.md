@@ -9,7 +9,9 @@
 - [Pipeline overview](#pipeline-overview)
 ## Introduction
 Repository of the publication ["Virtual reality empowered deep learning analysis of brain activity"](https://doi.org/10.1101/2023.05.18.540970).
-This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://discotechnologies.org/DELiVR) for plattform independet execution.
+This repository contains the source code to run DELIVR from scratch. We also provide a [docker container](https://discotechnologies.org/DELiVR) for platform-independent execution.
+You can control the DELiVR docker via our Fiji plugin, see [here](https://discotechnologies.org/DELiVR) for the binaries and the plugin's [github page](https://github.com/erturklab/delivr_fiji) for the Java code. 
+
 ## Requirements
 ### Python requirements
 Python 3.8 on Linux for downsampling, masking, upsampling 
@@ -39,7 +41,7 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 7. (If required, download the intermediate results and move them to into `/data/`)
 8. Run `python __main__.py` in the terminal
 
-Expected installation time: ca 1h for local python install, ca 10 min if using the docker
+Expected installation time: ca 1h for local python install, ca 10 min if using the docker.
 
 ### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
