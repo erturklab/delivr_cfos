@@ -39,6 +39,8 @@ We assume that the files are a series of 16-bit TIFF files, one per z-plane. Our
 7. (If required, download the intermediate results and move them to into `/data/`)
 8. Run `python __main__.py` in the terminal
 
+Expected installation time: ca 1h for local python install, ca 10 min if using the docker
+
 ### Config.json parameters
 - `raw_location` : Location of the raw image files of the brain as individual tiffs
 - `mask_detection` `ilastik_location`  : Location of the ilastik executable file 
