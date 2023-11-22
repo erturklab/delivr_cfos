@@ -396,6 +396,4 @@ def downsample_mask(settings, brain):
         os.remove(os.path.join(results_folder, "mask_us.npy"))
     except:
         pass
-
-    #return name of the mouse brain and its original shape 
-    return brain,masked_nii.shape
+    print(f"{datetime.datetime.now()} : Masking Done")

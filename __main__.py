@@ -82,7 +82,6 @@ if __name__ == "__main__":
     # Downsample
     # Downsample, filter out ventricles, upsample and mask the raw images
     # Multiple intermediate steps are saved for further steps down the pipeline
-    mouse_list = []
     if settings["FLAGS"]["MASK_DOWNSAMPLE"]:
         print("Masking")
         brain_list = os.listdir(settings["raw_location"])
@@ -92,8 +91,7 @@ if __name__ == "__main__":
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(brain_list)}")
             #downsample and mask image stack
             if not os.path.exists(os.path.join(settings["mask_detection"]["output_location"], brain,"masked_niftis")):
-                mouse_id, stack_shape = downsample_mask(settings, brain)
-                mouse_list.append({"mouse_id":mouse_id,"stack_shape":stack_shape})
+                downsample_mask(settings, brain)
             else:
                 print(f"{brain} exists, skipping...")
 
@@ -120,11 +118,8 @@ if __name__ == "__main__":
             # 
             binary_path = settings["blob_detection"]["output_location"] + "/" + mouse.name + "/binary_segmentations/masked_nifti.npy"
             tta         = settings["FLAGS"]["TEST_TIME_AUGMENTATION"]
-            try:
-                stack_shape  = mouse_list['mouse_id'==mouse]['stack_shape']
-            except:
-                stack_shape = get_real_size(os.path.join(settings["raw_location"], mouse.name))
-                stack_shape = (1,1,*stack_shape)
+            stack_shape = get_real_size(os.path.join(settings["raw_location"], mouse.name))
+            stack_shape = (1,1,*stack_shape)
             if not os.path.exists(binary_path):
                 print(f"Detecting in {mouse}")
                 mouse_name = mouse.name
@@ -161,9 +156,6 @@ if __name__ == "__main__":
             #Hook for communicating with Fiji plugin
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(os.listdir(path_in))}")
             #get shape of the image stack
-            #try:
-            #    stack_shape  = mouse_list['mouse_id'==brain]['stack_shape']
-            #except:
             stack_shape = get_real_size(os.path.join(settings["raw_location"], brain))
             stack_shape = (1,1,*stack_shape)
             count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size, max_size)
