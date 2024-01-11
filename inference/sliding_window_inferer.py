@@ -47,6 +47,7 @@ def sliding_window_inference(
     count_map: torch.tensor = None,
     tta: bool = None,
     flip_dim: int = None,
+    window_data_threshold: int = 0,
     *args: Any,
     **kwargs: Any,
 ) -> torch.Tensor:
@@ -89,6 +90,7 @@ def sliding_window_inference(
             By default the device (and accordingly the memory) of the `inputs` is used. If for example
             set to device=torch.device('cpu') the gpu memory consumption is less and independent of the
             `inputs` and `roi_size`. Output is on the `device`.
+        window_data_threshold: Threshold value for skipping the inference, 0 in case masking was used
         args: optional args to be passed to ``predictor``.
         kwargs: optional keyword args to be passed to ``predictor``.
 
@@ -193,7 +195,7 @@ def sliding_window_inference(
         window_data = torch.cat(data_to_load,dim=0)
         
         #skip computing if this tile is background (as filtered and set to 0 by the mask_detection step)
-        if window_data.max() == 0:
+        if window_data.max() <= window_data_threshold:
             seg_prob=torch.ones_like(window_data)
             seg_prob = seg_prob*-1000
             #cast the results back to float16 
@@ -207,7 +209,7 @@ def sliding_window_inference(
             window_data.to(sw_device)
 
             #add noise if running with test-time augmentation
-            if tta == True:
+            if tta:
                 #window_data = RandGaussianNoise(prob=1.0, std=0.001)(window_data)
                 #window_data[:,0,:,:,:] = window_data[:,0,:,:,:] + (0.00001**0.5)*torch.randn(size=window_data[:,0,:,:,:].shape,out=window_data[:,0,:,:,:],dtype=torch.float32,device=sw_device)
                 window_data = RandGaussianNoise(prob=1.0, mean=0.0, std=0.001)(window_data)
