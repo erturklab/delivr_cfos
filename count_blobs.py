@@ -43,8 +43,8 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
     start = datetime.datetime.now()
     print(f"{start} Start {brain} - {brain_i}/{len_b}")
     brain_path = os.path.join(path_in, brain, "binary_segmentations", "binaries.npy")
-    bin_img = dataset_on_disk = np.memmap(brain_path,dtype=np.uint8,mode='r+',shape=stack_shape[1:],offset=128)
-    bin_img = bin_img[0,:,:,:]
+    bin_img = dataset_on_disk = np.memmap(brain_path,dtype=np.uint8,mode='r+',shape=stack_shape[2:],offset=128)
+    #bin_img = bin_img[0,:,:,:]
     mid = datetime.datetime.now()
     print(f"{mid} Reading took {mid - start}")
     #x = np.swapaxes(x, 0, -1)

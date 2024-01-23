@@ -75,8 +75,8 @@ def blob_highlighter(settings, brain_item,stack_shape):
 
     # Load binarized outputs
     print(f"{datetime.datetime.now()} : Loading brain")
-    bin_img = np.memmap(path_brain_binary,dtype=np.uint8,mode='r+',shape=stack_shape[1:],offset=128)
-    bin_img = bin_img[0,:,:,:]
+    bin_img = np.memmap(path_brain_binary,dtype=np.uint8,mode='r+',shape=stack_shape[2:],offset=128)
+    #bin_img = bin_img[0,:,:,:]
     
     if not load_cached_stats(settings, brain):
         temp_cc3d_output_path = os.path.join(path_cache+"temp_cc3d_store.npy") 

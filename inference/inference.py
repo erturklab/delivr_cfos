@@ -40,12 +40,12 @@ def create_nifti_seg(
     #save activated network output as npy, then re-read
     #optional
     if network_output_file is not None:
-        activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=original_stack_shape[1:])
+        activated_outputs = np.lib.format.open_memmap(network_output_file, mode='w+', dtype=np.float32,shape=original_stack_shape[2:])
     
     #save binarized network output as npy, then re-read
     #np.save(output_file,np.zeros(shape=model_output.shape[1:], dtype=np.uint8))
     #binarized_outputs = np.memmap(output_file,mode='w+',dtype=np.uint8,shape=model_output.shape[1:])
-    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=original_stack_shape[1:])    
+    binarized_outputs = np.lib.format.open_memmap(output_file,mode='w+',dtype=np.uint8,shape=original_stack_shape[2:])    
 
     #note that the input_image is only used for re-generating the mask (for re-masking the binaries, this reduces edge effects at the edge of the mask)
 
@@ -63,11 +63,13 @@ def create_nifti_seg(
         old_idx, idx = update_idx(old_idx,idx,list(img_iterator.shape))
         #apply sigmoid function to subarray
         subarr = torch.as_tensor(subarr,dtype=torch.float)
+        print("subarr shape: ", subarr.shape)
+
         sigmoid = (subarr[:, :, :].sigmoid()).detach().cpu().numpy()  
         
         #optional: export to activated_outputs array
         if network_output_file is not None:
-            activated_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
+            activated_outputs[old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = sigmoid
     
         #threshold for binarization 
         thresholded_sigmoid = sigmoid >= threshold
@@ -81,7 +83,7 @@ def create_nifti_seg(
         #re-mask binaries 
         thresholded_sigmoid = thresholded_sigmoid.astype(np.uint8) * mask
         #export to binarized_output array
-        binarized_outputs[0,old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = thresholded_sigmoid.astype(np.uint8)
+        binarized_outputs[old_idx[0]:idx[0],old_idx[1]:idx[1],old_idx[2]:idx[2]] = thresholded_sigmoid.astype(np.uint8)
         #update index 
         old_idx = idx
     
