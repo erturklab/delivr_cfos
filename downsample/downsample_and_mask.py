@@ -371,7 +371,7 @@ def downsample_mask(settings, brain):
     for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
         img = cv2.imread(raw_location + "/" + item, -1)
     
-        print(f"Masking z_plane {item} {i} / {raw_shape[1]}")        
+        print(f"Masking z_plane {item} {i} / {raw_shape[0]}")        
         # Mask raw data with upscaled mask
         if settings["mask_detection"]["mask_with_Ilastik"]:
             img *= mask_us[i,:,:]

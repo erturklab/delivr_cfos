@@ -166,7 +166,7 @@ def run_inference(
     #convert to MB 
     available_mem = available_mem/(1024**2)
     #230 MB is empirically determined mem requirement for sw_crop (64,64,32)
-    empirical_sw_batch_size = int(round(available_mem / 300))
+    empirical_sw_batch_size = int(round(available_mem / 200))
     sw_batch_size = empirical_sw_batch_size
     print("using batch size: ",sw_batch_size)
 

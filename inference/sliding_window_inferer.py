@@ -219,15 +219,14 @@ def sliding_window_inference(
                 window_data = torch.flip(window_data,dims=[flip_dim])
 
             #run the actual prediction 
-            #seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
-            seg_prob = predictor(window_data, *args, **kwargs)  # batched patch segmentation
+            seg_prob = predictor(window_data, *args, **kwargs).to(device)  # batched patch segmentation
             
             # flip data back if previously flipped 
             if flip_dim is not None:
                 seg_prob = torch.flip(seg_prob,dims=[flip_dim])
             
             #cast the results back to float16 
-            seg_prob = seg_prob.to(torch.float16).to(device)
+            seg_prob = seg_prob.to(torch.float16)
 
         # store the result in the proper location of the full output. Apply weights from importance map. (skip this if it is all background) 
         for idx, original_idx in zip(slice_range, unravel_slice):
