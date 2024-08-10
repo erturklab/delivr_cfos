@@ -52,6 +52,11 @@ if __name__ == "__main__":
 
     config_location = args.config
 
+    #warn if using the internal default config 
+    if config_location == "config.json":
+        print("Warning: using internal default config. If you tried using your own, please double-check the path!")
+
+    #clean up location location if it's a list 
     if type(config_location) == type([]):
         config_location = config_location[0]
 
@@ -198,7 +203,7 @@ if __name__ == "__main__":
         print("Visualization")
         region = "" #TODO: User should be able to choose
         mouse_name_list = list(sorted(os.listdir(settings["visualization"]["input_prediction_location"])))
-        brain_list = list(zip(mouse_name_list,[region]))
+        brain_list = [[mouse,region] for mouse in mouse_name_list]
         hookoverall += 1
         for brain_i, brain_item in enumerate(brain_list):
             print(brain_item)
