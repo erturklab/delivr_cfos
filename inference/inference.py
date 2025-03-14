@@ -121,7 +121,7 @@ def run_inference(
     cuda_devices="0,1",
     crop_size=(64,64, 32),
     workers=0,
-    sw_batch_size=30, 
+    sw_batch_size=100, 
     overlap=0.5,
     verbosity=True,
     load_all_ram=False,
@@ -158,18 +158,7 @@ def run_inference(
 
     # clean memory
     torch.cuda.empty_cache()
-    
-    #smartly set sw_batch_size to occupy available VRAM 
-    available_mem = np.sum([torch.cuda.mem_get_info(i)[0] for i in range(torch.cuda.device_count())])
-    available_mem = int(available_mem*0.95) #safety margin
-
-    #convert to MB 
-    available_mem = available_mem/(1024**2)
-    #230 MB is empirically determined mem requirement for sw_crop (64,64,32)
-    empirical_sw_batch_size = int(round(available_mem / 200))
-    sw_batch_size = empirical_sw_batch_size
-    print("using batch size: ",sw_batch_size)
-
+  
     if settings is not None:
         #load the crop_size from the settings (overriding default of (64,64,32))
         crop_size_0 = settings["blob_detection"]["window_dimensions"]["window_dim_0"]
@@ -177,7 +166,26 @@ def run_inference(
         crop_size_2 = settings["blob_detection"]["window_dimensions"]["window_dim_2"]
         #assemble crop_size
         crop_size = (crop_size_0,crop_size_1,crop_size_2)
+    print("using crop size:  ",crop_size)
 
+    #smartly set sw_batch_size to occupy available VRAM  
+    available_mem = np.sum([torch.cuda.mem_get_info(i)[0] for i in range(torch.cuda.device_count())])
+    available_mem = int(available_mem*0.95) #safety margin
+    #convert to MB 
+    available_mem = available_mem/(1024**2)
+  
+    #180 MB is empirically determined mem requirement for sw_crop (64,64,32)
+    #assuming 810 mb (=200 * 4,5) for 96x96x64
+    empirical_scale_factor = 45
+    empirical_single_batch_size = crop_size[0]*crop_size[1]*crop_size[2]*32*empirical_scale_factor
+    #convert empirical_single_batch_size to MB 
+    empirical_single_batch_size = empirical_single_batch_size / (1024**2)
+
+    #calculate empirical batch count
+    empirical_sw_batch_size = int(round(available_mem / empirical_single_batch_size))
+    sw_batch_size = empirical_sw_batch_size
+    print("using batch size: ",sw_batch_size)
+    
     # ~~<< M O D E L >>~~
     model = BasicUNet(
         spatial_dims=3,
