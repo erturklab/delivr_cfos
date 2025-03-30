@@ -1,0 +1,32 @@
+import numpy as np
+import os 
+import tifffile
+import glob
+
+input_folder = "/home/wirrbel/2024-08-09_Iman_samples/output_all/06_visualization/output/ctrl_3_rgb_tiffs/" 
+
+imglist_R = sorted(glob.glob(input_folder+"*C00*"))
+
+imglist_G = sorted(glob.glob(input_folder+"*C01*"))
+
+imglist_B = sorted(glob.glob(input_folder+"*C02*"))
+
+#add red image + scale
+viewer.add_image(tifffile.imread(imglist_R),colormap="red",blending="additive")
+current_image_name = viewer.layers.selection.active.name
+viewer.layers[current_image_name].scale=[3.0,4.75,4.75]
+
+#add green image + scale
+viewer.add_image(tifffile.imread(imglist_G),colormap="green",blending="additive")
+current_image_name = viewer.layers.selection.active.name
+viewer.layers[current_image_name].scale=[3.0,4.75,4.75]
+
+#add blue image + scale
+viewer.add_image(tifffile.imread(imglist_B),colormap="blue",blending="additive")
+current_image_name = viewer.layers.selection.active.name
+viewer.layers[current_image_name].scale=[3.0,4.75,4.75]
+
+#make scale bar 
+viewer.scale_bar.unit = "um"
+viewer.scale_bar.length = 1000
+viewer.scale_bar.visible = True

@@ -240,7 +240,7 @@ def add_to_collection(collection_table, uniquetable, mouse_name):
     
 #=== Main function body === 
 #if __name__ == '__main__': 
-def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_list,target_folder,hookoverall,hookfactor):
+def map_cells_to_atlas(settings,OntologyFilePath,CCF3_filepath,source_folder, mouse_name_list,target_folder,hookoverall,hookfactor):
     '''
     takes cell coordinates in CCF3 atlas space and assigns brain regions to them, then summarizes in tables and heatmaps.
     '''
@@ -251,6 +251,11 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_
 
     #load the ontology df 
     ontology_df = parseOntologyXML(OntologyFilePath)
+
+    #get minimum and maximum cell size (in voxels) for size filtering
+    min_size = settings["postprocessing"]["min_size"]
+    max_size = settings["postprocessing"]["max_size"]
+
     
     #load region atlas 
     #LabelImage = np.asarray(nib.load(LabelFilePath).dataobj)
@@ -283,8 +288,14 @@ def map_cells_to_atlas(OntologyFilePath,CCF3_filepath,source_folder, mouse_name_
         
         #load xyz coords
         print(f"Cellsfile:\n{cellsfile}\n")
-        cells = pd.read_csv(cellsfile,sep=' ',usecols=["n","x","y","z"])
+        cells = pd.read_csv(cellsfile,sep=' ',usecols=["n","x","y","z","Size"])
         
+        #filter based on size 
+        if min_size != -1:
+            cells = cells[cells["Size"] >= min_size]
+        if max_size != -1:
+            cells = cells[cells["Size"] <= max_size]
+
         #optional: rename "n" to "connected_component_id" for connected component analysis
         cells = cells.rename(columns={"n" : "connected_component_id"})
         

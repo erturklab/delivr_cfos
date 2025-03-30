@@ -95,32 +95,20 @@ def count_blobs(settings, path_in, brain_i, brain, stack_shape, min_size=-1, max
     mid4 = datetime.datetime.now()
     print(f"{mid4} stats took {mid4-mid3}")
 
+    #convert stats into a pandas data frame
+    #stats_pd = pd.DataFrame({"voxel_counts" : stats["voxel_counts"],"centroids_z":stats["centroids"][:,0],"centroids_y":stats["centroids"][:,1],"centroids_x":stats["centroids"][:,2],})
+
     columns = ["Blob", "Coords", "Size"]
     df = pd.DataFrame(columns = columns)
-
+    
     for i in range(1, N):
-        if min_size == -1:
-            if max_size == -1:
-                centroids_list = [stats["centroids"][i].tolist()]
-                df_l = pd.DataFrame({"Blob":i,\
-                        "Coords":centroids_list,\
-                        "Size":stats["voxel_counts"][i]})
-                df = pd.concat([df, df_l])
-            else:
-                if stats["voxel_counts"] <= max_size:
-                    centroids_list = [stats["centroids"][i].tolist()]
-                    df_l = pd.DataFrame({"Blob":i,\
-                            "Coords":centroids_list,\
-                            "Size":stats["voxel_counts"][i]})
-                    df = pd.concat([df, df_l])
-        else:
-            if stats["voxel_counts"] >= min_size:
-                centroids_list = [stats["centroids"][i].tolist()]
-                df_l = pd.DataFrame({"Blob":i,\
-                        "Coords":centroids_list,\
-                        "Size":stats["voxel_counts"][i]})
-                df = pd.concat([df, df_l])
-
+        #note: size filtering is now done in the reattach_size_and_copy step of the automate_mBrainaligner script
+        centroids_list = [stats["centroids"][i].tolist()]
+        df_l = pd.DataFrame({"Blob":i,\
+                "Coords":centroids_list,\
+                "Size":stats["voxel_counts"][i]})
+        df = pd.concat([df, df_l])
+        
 
     output_name = f"{bin_img.shape}_{brain.replace('.nii.gz','')}.csv"
     df.to_csv(path_out + output_name)

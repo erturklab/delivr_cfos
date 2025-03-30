@@ -23,15 +23,18 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name):
     
     print(f"Source File:\n{source_file}")
     print(f"Output Dir:\n{output_dir}")
+    source_folder = os.path.split(source_file)[0]
     #first (global) alignment 
     cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
     f" -f {mBrainAligner_location}examples/target/50um/ " +
     f" -m \"{source_file}\"" +
-    " -p r+f+n " +
+    " -p a " +
     f" -o \"{output_dir}/\""+ 
     " -d 20 " +
     " -l 0+0+0 " +
-    " -u 0" )
+    " -u 0" +
+    f" -t {source_folder}/atlas_landmarks.marker" +
+    f" -s {source_folder}/brain_landmarks.marker")
     
     
     #print ('running global alignment for mouse ' + str(mouse_name))
@@ -43,9 +46,9 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name):
     #TODO Include config
     #second (local) alignment 
     cmd_local = str(f" {mBrainAligner_location}binary/linux_bin/local_registration " + 
-    f" -p {mBrainAligner_location}examples/config/LSFM_config_DeliVR.txt " + 
+    f" -p {mBrainAligner_location}examples/config/LSFM_half_config.txt " + 
     f" -s {output_dir}/global.v3draw " +
-    f" -l {mBrainAligner_location}examples/target/50um/target_landmarks/low_landmarks.marker " + 
+    f" -l {mBrainAligner_location}examples/target/50um/target_landmarks/low_landmarks.marker" + 
     f" -g {mBrainAligner_location}examples/target/50um/ " + 
     f" -o \"{output_dir}/\""+
     " -u 0")
@@ -222,14 +225,14 @@ def reassemble_swcs (output_dir):
 def reattach_size_and_copy(csv_path,swc_local,mouse_name,output_dir,aligned_results_folder):
     #### re-attach size column from the original csv 
     #read tranformed swc
-    registered_cells = pd.read_csv(swc_local, sep = ' ',skiprows=3,names=['n','type', 'x','y','z','radius','parent'])
+    registered_cells = pd.read_csv(swc_local, sep = ' ',skiprows=1,names=['n','type', 'x','y','z','radius','parent'])
     #read the original csv 
     original_csv = pd.read_csv(csv_path)
     #merge to new df
     merged = registered_cells.copy()
     merged['Size'] = original_csv['Size']
     merged = merged.drop(['radius','parent'],axis=1)
-    
+
     #define output file name 
     output_file_name = mouse_name+'_local_registered_with_original_size.csv'
     #write to csv 
@@ -299,6 +302,8 @@ def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, or
         cmd_list = []
         
         for target_swc in target_swc_file_name_list:
+            source_folder = os.path.join("/data/output/01_mask_detection/output/",mouse_name)
+
             #remove .swc file ending from target_swc 
             target_swc_name = target_swc[-17:-4]
             
@@ -315,12 +320,11 @@ def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, or
             #swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
             
             cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
-                " -C " + glob.glob(output_dir+"/*RPM_tar.marker")[0] +
-                " -M " + glob.glob(output_dir+"/*RPM_sub.marker")[0] +
+                f" -C {source_folder}/atlas_landmarks.marker" +
+                f" -M {source_folder}/brain_landmarks.marker"+
                 " -o " + "\"" + target_swc + "\"" +
                 " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
                 " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
-                " -d " + glob.glob(output_dir+"/*FFD_grid.swc")[0] +
                 " -x " + str(ds_factor_x) +
                 " -y " + str(ds_factor_y) +
                 " -z " + str(ds_factor_z) +
@@ -417,6 +421,9 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_downsampled.v3draw")
     tiff_path   = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_resampled.tif")
     csv_path    = entry#os.path.join(settings["postprocessing"]["output_location"], brain) 
+
+    #min_size = settings["postprocessing"]["min_size"]
+    #max_size = settings["postprocessing"]["max_size"]
 
     #if latest is not given, fill in something 
     if latest_output is None:

@@ -101,6 +101,9 @@ def blob_highlighter(settings, brain_item,stack_shape):
         G_img = np.lib.format.open_memmap(os.path.join(path_cache,"G_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
         B_img = np.lib.format.open_memmap(os.path.join(path_cache,"B_img.npy"),mode='w+',dtype=np.uint8,shape=stack_shape[2:])
 
+        #debug 
+        num_errors = 0
+
         #iterate cells, color one by one 
         for cc_id in cell_csv['connected_component_id']:
             #extract cell (returns empty df if not present) 
@@ -110,10 +113,18 @@ def blob_highlighter(settings, brain_item,stack_shape):
             bb = pad_bb(bb,stack_shape)
             #color the positive values inside the BB. 
             #Note this is optimized for small, round-ish blobs. Long, diagonal blobs (i.e. blood vessels) might accidentally re-color other blobs close by. 
-            R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
-            G_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['green'].to_numpy()
-            B_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['blue'].to_numpy()
+            
 
+            try:
+                R_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['red'].to_numpy()
+                G_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['green'].to_numpy()
+                B_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] = bin_img[bb[0]:bb[1],bb[2]:bb[3],bb[4]:bb[5]] * current_cell['blue'].to_numpy()
+            except ValueError as error:
+                num_errors = num_errors + 1 
+                print("error number ", num_errors, " at cc_id ",cc_id)
+                pass
+
+            
         #output RGB images as different channels (for easy visualization in 3D rendering programs)
         print(f"{datetime.datetime.now()} : Generating RGB tiffs")
         for z in range(bin_img.shape[0]):

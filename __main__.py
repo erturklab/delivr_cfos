@@ -170,33 +170,41 @@ if __name__ == "__main__":
         print("Atlas alignment")
         postprocessed_files = Path(settings["postprocessing"]["output_location"]).files("*.csv")
 
-        mouse_name_list = []
+        #mouse_name_list = []
         hookoverall += 1
         for brain_i, blobcoordinates in enumerate(postprocessed_files):
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(postprocessed_files)}")
-            mouse_name = run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
+            try:
+                mouse_name = run_mbrainaligner_and_swc_reg(entry                     = blobcoordinates,\
                                           settings                  = settings,\
                                           xyz                       = False,\
                                           latest_output             = None,\
                                           aligned_results_folder    = settings["atlas_alignment"]["collection_folder"],\
                                           mBrainAligner_location    = settings["atlas_alignment"]["mBrainAligner_location"],\
                                           parallel_processing       = settings["atlas_alignment"]["parallel_processing"])
-             #add to mouse name list 
-            mouse_name_list.append(mouse_name)
+            except Exception as e:
+                print(f"Error encountered, skipping {blobcoordinates}:")
+                print (e)
+                pass
+            #add to mouse name list 
+            #mouse_name_list.append(mouse_name)
 
     # Region assignment 
     #TODO Folder erstellen
     if settings["FLAGS"]["REGION_ASSIGNMENT"]:
+        mouse_name_list = os.listdir(settings["raw_location"])
         print("Region assignment")
         #TODO HOOKS
         hookoverall += 1
-        map_cells_to_atlas(OntologyFilePath = settings["region_assignment"]["CCF3_ontology"],\
-                       CCF3_filepath    = settings["region_assignment"]["CCF3_atlasfile"],\
-                       source_folder  = settings["atlas_alignment"]["collection_folder"],\
-                       mouse_name_list  = mouse_name_list,\
-                       target_folder    = settings["region_assignment"]["output_location"],
-                       hookoverall      = hookoverall,
-                       hookfactor       = hookfactor)
+        map_cells_to_atlas(
+                        settings,\
+                        OntologyFilePath = settings["region_assignment"]["CCF3_ontology"],\
+                        CCF3_filepath    = settings["region_assignment"]["CCF3_atlasfile"],\
+                        source_folder  = settings["atlas_alignment"]["collection_folder"],\
+                        mouse_name_list  = mouse_name_list,\
+                        target_folder    = settings["region_assignment"]["output_location"],
+                        hookoverall      = hookoverall,
+                        hookfactor       = hookfactor)
 
     # Visualization
     if settings["FLAGS"]["VISUALIZATION"]:
@@ -211,7 +219,7 @@ if __name__ == "__main__":
             stack_shape = (1,1,*stack_shape)
             print(f"HOOK:{hookoverall}:{hookfactor}:{brain_i}:{len(brain_list)}")
             blob_highlighter(settings, brain_item,stack_shape)
-
+          
     # Cleanup
     if settings["FLAGS"]["MASK_DOWNSAMPLE"] and not settings["FLAGS"]["SAVE_MASK_OUTPUT"]:
         print("Removing masking output...")
