@@ -38,7 +38,8 @@
         "output_location":"/data/output/04_atlas_alignment/output/",
         "mBrainAligner_location":"/delivr/mbrainaligner/",
         "collection_folder":"/data/output/04_atlas_alignment/collection/",
-        "parallel_processing":true
+        "parallel_processing":true,
+        "landmarks_hemisphere":false
     },
     "region_assignment":{
         "input_location":"/data/output/04_atlas_alignment/collection/",

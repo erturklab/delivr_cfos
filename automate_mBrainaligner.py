@@ -18,24 +18,36 @@ import more_itertools
 import subprocess
 import datetime
 
-def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name): 
+def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name, settings): 
     #run mBrainAligner global + local registration. Lightly adapted from the fLSM example windows batch file. 
     
     print(f"Source File:\n{source_file}")
     print(f"Output Dir:\n{output_dir}")
     source_folder = os.path.split(source_file)[0]
     #first (global) alignment 
-    cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
-    f" -f {mBrainAligner_location}examples/target/50um/ " +
-    f" -m \"{source_file}\"" +
-    " -p a " +
-    f" -o \"{output_dir}/\""+ 
-    " -d 20 " +
-    " -l 0+0+0 " +
-    " -u 0" +
-    f" -t {source_folder}/atlas_landmarks.marker" +
-    f" -s {source_folder}/brain_landmarks.marker")
     
+    if(settings["atlas_alignment"]["landmarks_hemisphere"] == True):
+        #use the landmarks to do the initial affine transformation. Recommended for hemispheres but requires manual landmark generation
+        cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
+        f" -f {mBrainAligner_location}examples/target/50um/ " +
+        f" -m \"{source_file}\"" +
+        " -p a " +
+        f" -o \"{output_dir}/\""+ 
+        " -d 20 " +
+        " -l 0+0+0 " +
+        " -u 0" +
+        f" -t {source_folder}/atlas_landmarks.marker" +
+        f" -s {source_folder}/brain_landmarks.marker")
+    else
+        #use mBrainaligner's built-in registration tools. Recommended for whole-brain image stacks 
+        cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
+        f" -f {mBrainAligner_location}examples/target/50um/ " +
+        f" -m \"{source_file}\"" +
+        " -p r+f+n " +
+        f" -o \"{output_dir}/\""+ 
+        " -d 20 " +
+        " -l 0+0+0 " +
+        " -u 0" )    
     
     #print ('running global alignment for mouse ' + str(mouse_name))
     print("global alignment command: ", cmd_global)
@@ -249,8 +261,10 @@ def reattach_size_and_copy(csv_path,swc_local,mouse_name,output_dir,aligned_resu
 def compute_sampling_factors(mBrainAligner_location, swc_file , tiff_path, XYZ=False,parallel_processing=False):
     #determine the shape of the downsampled image 
     
-    #laod tiff stack, then determine size 
-    resampled_tif_stack = tifffile.imread(tiff_path)
+    #load tiff stack, then determine size 
+    #tifffile _multifile=False means the metadata is ignored, and tifffile does not load the entire stack when accessing the first image of an ome.tif (that has infos about the stack in its metadata).
+    #specifically added to deal with odd ome.tifs produced by some versions of Miltenyi/Lavision Ultramicroscope's Imspector software. 
+    resampled_tif_stack = tifffile.imread(tiff_path,_multifile=False) 
     downsampled_z,downsampled_y,downsampled_x = resampled_tif_stack.shape
 
     #determine non-downsampled (original) stack dimensions from swc file name 
@@ -454,7 +468,7 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     
     #run mBrainAligner-to-atlas registration
     print(f"{datetime.datetime.now()} : Registering brain to atlas using mBrainaligner")
-    atlas_align(mBrainAligner_location, source_file,output_dir,mouse_name)
+    atlas_align(mBrainAligner_location, source_file,output_dir,mouse_name,settings)
     
     print(f"{datetime.datetime.now()} : Mapping cell coordinates into atlas space")
     #rewrite swc from Rami's blob swc
