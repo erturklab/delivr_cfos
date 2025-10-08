@@ -38,7 +38,7 @@ def atlas_align(mBrainAligner_location, source_file, output_dir,mouse_name, sett
         " -u 0" +
         f" -t {source_folder}/atlas_landmarks.marker" +
         f" -s {source_folder}/brain_landmarks.marker")
-    else
+    else:
         #use mBrainaligner's built-in registration tools. Recommended for whole-brain image stacks 
         cmd_global = str (f" {mBrainAligner_location}binary/linux_bin/global_registration " + 
         f" -f {mBrainAligner_location}examples/target/50um/ " +

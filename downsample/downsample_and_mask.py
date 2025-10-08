@@ -227,26 +227,28 @@ def downsample_mask(settings, brain):
     #Note that Teraconverter requires at least 250 px in all dimensions, so skip if too small 
     #workaround for the minimum 250 px x/y size of teraconverter, which is often an issue with 1.1x ultramicroscope datasets     
     #pad the file
-    (z,y,x) = downsampled_stack.shape()
+    (z,y,x) = downsampled_stack.shape
     if [dim < 250 for dim in (z,y,x)]:
         ds_padded = downsampled_stack.copy()
         if z < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,250-z),(0,0),(0,0)),constant_values=0)
+            ds_padded = np.pad(ds_padded,pad_width=((0,256-z),(0,0),(0,0)),constant_values=0)
         if y < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,250-y),(0,0)),constant_values=0)
+            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,256-y),(0,0)),constant_values=0)
         if x < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,0),(0,250-x)),constant_values=0)
-        io.imsave(os.path.join(results_folder,downsampled_name + 'stack_downsampled_padded.tif'),ds_padded,compression='lzw')    
-        downsampled_name = "stack_downsampled_padded"
-    else
-        downsampled_name = 'stack_resampled'
+            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,0),(0,256-x)),constant_values=0)
+        downsampled_name = 'stack_resampled_padded_8bit.tif'
+        io.imsave(os.path.join(results_folder,downsampled_name),ds_padded,compression='lzw')    
+
+    else:
+        downsampled_name = downsampled_name + '_8bit.tif'
     downsampled_masked_name     = 'stack_downsampled'
     downsampled_masked_path     = os.path.join(results_folder, downsampled_masked_name)
     downsampled_masked_vaa3d    = os.path.join(results_folder, "stack_downsampled")
     if not os.path.exists(downsampled_masked_vaa3d):
         os.mkdir(downsampled_masked_vaa3d)
     teraconverter_path = settings["mask_detection"]["teraconverter_location"]
-    save_vaa3d(teraconverter_path, os.path.join(results_folder,downsampled_name + '_8bit.tif'), downsampled_masked_vaa3d)
+    print("downsampled_name = " ,downsampled_name)
+    save_vaa3d(teraconverter_path, os.path.join(results_folder,downsampled_name), downsampled_masked_vaa3d)
     
     #cleanup 
     #temp_dir.cleanup()
@@ -349,21 +351,22 @@ def downsample_mask(settings, brain):
     io.imsave(downsampled_masked_path + "/downsampled_masked_stack_8bit.tif", downsampled_masked_stack_8bit, compression='lzw',check_contrast=False)
 
     #again, Teraconverter requires stacks larger than 250 px in all directions, so we pad them if required 
-    (z,y,x) = downsampled_masked_stack_8bit.shape()
+    (z,y,x) = downsampled_masked_stack_8bit.shape
     if [dim < 250 for dim in (z,y,x)]:
         ds_padded = downsampled_masked_stack_8bit.copy()
         if z < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,250-z),(0,0),(0,0)),constant_values=0)
+            ds_padded = np.pad(ds_padded,pad_width=((0,256-z),(0,0),(0,0)),constant_values=0)
         if y < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,250-y),(0,0)),constant_values=0)
+            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,256-y),(0,0)),constant_values=0)
         if x < 250:
-            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,0),(0,250-x)),constant_values=0)
-        io.imsave(os.path.join(results_folder,downsampled_name + 'stack_downsampled_padded.tif'),ds_padded,compression='lzw')    
-        downsampled_name = "downsampled_masked_stack_padded"
-    else
-        downsampled_name = 'downsampled_masked_stack'
+            ds_padded = np.pad(ds_padded,pad_width=((0,0),(0,0),(0,256-x)),constant_values=0)
+        downsampled_name = 'downsampled_masked_stack_padded_8bit.tif'        
+        io.imsave(os.path.join(downsampled_masked_path,downsampled_name),ds_padded,compression='lzw')    
+        
+    else:
+        downsampled_name = 'downsampled_masked_stack_8bit.tif'
 
-    save_vaa3d(teraconverter_path, downsampled_masked_path + downsampled_name + "_8bit.tif", downsampled_masked_vaa3d)
+    save_vaa3d(teraconverter_path, os.path.join(downsampled_masked_path,downsampled_name), downsampled_masked_vaa3d)
     delta = datetime.datetime.now() -start
     print(f"Saving downsampled mask as tiff and vaa3d: {delta}")
 
