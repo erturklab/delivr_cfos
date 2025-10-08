@@ -432,7 +432,7 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     brain = ("_").join(entry_folder.split("_")[1:])
     orientation = entry_folder.split("_")[0]
     #TODO Find the v3draw
-    v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_downsampled.v3draw")
+    v3draw_path = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_masked_downsampled.v3draw")
     tiff_path   = os.path.join(settings["mask_detection"]["output_location"], brain,"stack_resampled.tif")
     csv_path    = entry#os.path.join(settings["postprocessing"]["output_location"], brain) 
 
