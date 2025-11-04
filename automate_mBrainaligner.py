@@ -289,7 +289,7 @@ def execute_swc_commandline(command):
     print("running command: ",command)
     subprocess.run(command,shell=True,stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
     
-def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, original_swc_file, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=False,parallel_processing=False): 
+def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, original_swc_file, tiff_path, mouse_name,output_dir,aligned_results_folder,settings,XYZ=False,parallel_processing=False): 
     #run mBrainaligner s swc registration 
     #create a command that looks like this: 
     '''
@@ -326,29 +326,47 @@ def register_swc_to_atlas (mBrainAligner_location, target_swc_file_name_list, or
             swc_global = os.path.join(output_dir,target_swc_name+"_global_data.swc")
             swc_ffd = os.path.join(output_dir,target_swc_name+"_FFD_data.swc")
             swc_local = os.path.join(output_dir,target_swc_name+"_local_registered_data.swc")
-                
+        
             #define path names for the resulting swc files 
             #swc_resampled = os.path.join(output_dir,str(mouse_name)+"_resampled.swc")
             #swc_global = os.path.join(output_dir,str(mouse_name)+"_global_data.swc")
             #swc_ffd = os.path.join(output_dir,str(mouse_name)+"_FFD_data.swc")
             #swc_local = os.path.join(output_dir,str(mouse_name)+"_local_registered_data.swc")
-            
-            cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
-                f" -C {source_folder}/atlas_landmarks.marker" +
-                f" -M {source_folder}/brain_landmarks.marker"+
-                " -o " + "\"" + target_swc + "\"" +
-                " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
-                " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
-                " -x " + str(ds_factor_x) +
-                " -y " + str(ds_factor_y) +
-                " -z " + str(ds_factor_z) +
-                " -a 264 -b 160 -c 228 " +
-                " -r " + swc_resampled +
-                " -g " + swc_global +
-                " -f " + swc_ffd + 
-                " -s " + swc_local  
-                )
-            
+
+            #use the landmarks if specified 
+            if(settings["atlas_alignment"]["landmarks_hemisphere"] == True):                
+                cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
+                    f" -C {source_folder}/atlas_landmarks.marker" +
+                    f" -M {source_folder}/brain_landmarks.marker"+
+                    " -o " + "\"" + target_swc + "\"" +
+                    " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
+                    " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
+                    " -x " + str(ds_factor_x) +
+                    " -y " + str(ds_factor_y) +
+                    " -z " + str(ds_factor_z) +
+                    " -a 264 -b 160 -c 228 " +
+                    " -r " + swc_resampled +
+                    " -g " + swc_global +
+                    " -f " + swc_ffd + 
+                    " -s " + swc_local  
+                    )
+            else:
+                cmd_swc =  str (f" {mBrainAligner_location}examples/swc_registration/binary/linux_bin/swc_registration " + 
+                    " -C " + glob.glob(output_dir+"/stack_masked_downsampled_RPM_tar.marker") [0] +
+                    " -M " + glob.glob(output_dir+"/stack_masked_downsampled_RPM_sub.marker")[0] +
+                    " -o " + "\"" + target_swc + "\"" +
+                    " -T " + glob.glob(output_dir+"/local_registered_tar.marker")[0] +
+                    " -S " + glob.glob(output_dir+"/local_registered_sub.marker")[0] +
+                    " -x " + str(ds_factor_x) +
+                    " -y " + str(ds_factor_y) +
+                    " -z " + str(ds_factor_z) +
+                    " -a 264 -b 160 -c 228 " +
+                    " -r " + swc_resampled +
+                    " -g " + swc_global +
+                    " -f " + swc_ffd + 
+                    " -s " + swc_local  
+                    )
+                    
             #run the registration 
             #print("registering swc for " + mouse_name)
             print("running swc registration: " + cmd_swc)
@@ -475,7 +493,7 @@ def run_mbrainaligner_and_swc_reg(entry, settings, xyz=False, latest_output=None
     target_swc_file_name_list = rewrite_swc(csv_path, output_dir,XYZ=xyz,parallel_processing=parallel_processing)
     
     #align swc to atlas
-    local_swc = register_swc_to_atlas   (mBrainAligner_location, target_swc_file_name_list, csv_path, tiff_path, mouse_name,output_dir,aligned_results_folder,XYZ=xyz,parallel_processing=parallel_processing)
+    local_swc = register_swc_to_atlas   (mBrainAligner_location, target_swc_file_name_list, csv_path, tiff_path, mouse_name,output_dir,aligned_results_folder,settings,XYZ=xyz,parallel_processing=parallel_processing)
     
     
     if parallel_processing != False:
