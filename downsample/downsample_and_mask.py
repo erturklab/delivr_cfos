@@ -10,17 +10,28 @@ import os
 import glob
 import shutil
 import numpy as np
-import nibabel as nib
 import multiprocessing as mp 
 import tempfile
 import cv2
 import datetime
+
+import zarr
+from ome_zarr.io import parse_url
+from ome_zarr.format import CurrentFormat, FormatV04
+from ome_zarr.reader import Reader
+from ome_zarr.writer import write_multiscales_metadata
+from ome_zarr.dask_utils import resize as da_resize
+import numpy as np
+import dask.array as da
+from math import ceil
+
 from skimage import io, transform
 from skimage.util import img_as_ubyte
 from scipy.ndimage import zoom
 from subprocess import Popen
 from collections import deque
 from subprocess import DEVNULL
+
 
 def get_real_size(raw_folder):
     z = len([i for i in os.listdir(raw_folder) if ".tif" in i])
@@ -135,8 +146,49 @@ def histogram_equalization_8b(stack):
     
     return stack_equalized_8bit
 
-# if __name__ == '__main__':
-def downsample_mask(settings, brain):
+
+def downsample_pyramid_on_disk(parent, paths):
+    """
+    Takes a high-resolution Zarr array at paths[0] in the zarr group
+    and down-samples it by a factor of 2 for each of the other paths
+    """
+    group_path = str(parent.store_path)
+    img_path = parent.store_path / parent.path
+    image_path = os.path.join(group_path, parent.path)
+    print("downsample_pyramid_on_disk", image_path)
+    for count, path in enumerate(paths[1:]):
+        target_path = os.path.join(image_path, path)
+        if os.path.exists(target_path):
+            print("path exists: %s" % target_path)
+            continue
+        # open previous resolution from disk via dask...
+        path_to_array = os.path.join(image_path, paths[count])
+        dask_image = da.from_zarr(path_to_array)
+
+        # resize in X and Y
+        dims = list(dask_image.shape)
+        dims[-1] = dims[-1] // 2
+        dims[-2] = dims[-2] // 2
+        output = da_resize(
+            dask_image, tuple(dims), preserve_range=True, anti_aliasing=False
+        )
+
+        options = {}
+        if fmt.zarr_format == 2:
+            options["dimension_separator"] = "/"
+        else:
+            options["chunk_key_encoding"] = fmt.chunk_key_encoding
+            options["dimension_names"] = [axis["name"] for axis in axes]
+        # write to disk
+        da.to_zarr(
+            arr=output, url=img_path, component=path,
+            zarr_format=fmt.zarr_format, **options
+        )
+    return paths
+
+
+if __name__ == '__main__':
+#def downsample_mask(settings, brain):
 
     print(f"{datetime.datetime.now()} : Defining downsampling folders")
     #stitched images are here 
@@ -374,7 +426,7 @@ def downsample_mask(settings, brain):
     # Save all tiffs neatly in a folder
     if not os.path.exists(os.path.join(results_folder, "masked_tiffs")):
         os.mkdir(os.path.join(results_folder, "masked_tiffs"))
-
+    '''
     # Save all npys neatly in a folder
     if not os.path.exists(os.path.join(results_folder, "masked_niftis")):
         os.mkdir(os.path.join(results_folder, "masked_niftis"))
@@ -394,7 +446,67 @@ def downsample_mask(settings, brain):
 
     #create a memmapped npy array on disk. This method should be RAM-friendlier than having to create the array in RAM, then saving to disk
     masked_nii = np.lib.format.open_memmap(os.path.join(results_folder, "masked_niftis", "masked_nifti.npy"), mode='w+', dtype=np.uint16,shape=(1,1,*raw_shape_pad))
+    '''
 
+    #prepare zarr parameters
+    coordinate_transformations = [[
+        {"scale": [1, 1, original_um_z, original_um_y, original_um_x], "type": "scale"}, 
+        {'translation': [0.0, 0.0, 0.0, 0.0, 0.0], 'type': 'translation'}
+        ]]
+    
+    axes = [
+        {
+            "name": "t",
+            "type": "time",
+            "unit": "second"
+        },
+        {
+            "name": "c",
+            "type": "channel"
+        },
+        {
+            "name": "z",
+            "type": "space",
+            "unit": "micrometer"
+        },
+        {
+            "name": "y",
+            "type": "space",
+            "unit": "micrometer"
+        },
+        {
+            "name": "x",
+            "type": "space",
+            "unit": "micrometer"
+        }
+    ]
+
+
+    #load the crop_size from the settings (default (64,64,32))
+    crop_size_0 = settings["blob_detection"]["window_dimensions"]["window_dim_0"]
+    crop_size_1 = settings["blob_detection"]["window_dimensions"]["window_dim_1"]
+    crop_size_2 = settings["blob_detection"]["window_dimensions"]["window_dim_2"]
+    #assemble crop_size
+    crop_size = (crop_size_0,crop_size_1,crop_size_2)
+
+    #create zarr file
+    zarr_path = os.path.join(results_folder,"zarr","masked_zarr")
+    os.mkdir(zarr_path)
+    store = ome_zarr.io.parse_url(zarr_path, mode="w").store
+    root = zarr.group(store=store)
+    #ome_zarr.writer.write_multiscale(pyramid=[img], group=root, coordinate_transformations=coordinate_transformations,axes=axes, storage_options=dict( chunks = ( 1, 1, *img.shape[2:] ) ), compression=None )
+    zarray = root.require_array(
+        "0",
+        shape=raw_shape,
+        exact=True,
+        chunks=(1, 1, *crop_size), #this is to match the crop size of the deep learning pipeline 
+        dtype=np.uint16,
+        axes=axes,
+        coordinate_transforms = coordinate_transforms,
+        compression="blosc",
+    )    
+    
+    #TODO: write original stack
     #mask images one-by-one 
     for i, item in enumerate(sorted([x for x in os.listdir(raw_location) if ".tif" in x])):
         img = cv2.imread(raw_location + "/" + item, -1)
@@ -411,10 +523,26 @@ def downsample_mask(settings, brain):
             img[img < threshold] = 0
 
         # Add to final Npy output
-        masked_nii[0,0,i,0:raw_shape[1],0:raw_shape[2]] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
+        #masked_nii[0,0,i,0:raw_shape[1],0:raw_shape[2]] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
+        zarray[0,0,i,0:raw_shape[1],0:raw_shape[2]] = np.expand_dims(np.expand_dims(img, axis=0),axis=0).astype(np.uint16)
 
-        # Save masked raw data
-        io.imsave(os.path.join(results_folder, "masked_tiffs", item), img, compression='lzw', check_contrast=False)     
+    
+    #TODO: multiscale 
+    paths = ["0", "1", "2"]
+
+    downsample_pyramid_on_disk(root, paths)
+
+    transformations = [
+        [{"scale": [1, 1, 1.0, 1.0, 1.0], "type": "scale"}], 
+        [{"scale": [1, 1, 2.0, 2.0, 2.0], "type": "scale"}], 
+        [{"scale": [1, 1, 4.0, 4.0, 4.0], "type": "scale"}], 
+        ]
+
+    datasets = []
+    for p, t in zip(paths, transformations):
+        datasets.append({"path": p, "coordinateTransformations": t})
+
+    write_multiscales_metadata (root, datasets, axes=axes)
 
     delta = datetime.datetime.now() - start
     print(f"Masking: {delta}")
